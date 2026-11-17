@@ -28,7 +28,7 @@ function renderCards(){
   card.querySelector('.clear').onclick=()=>deleteImages(i,c.samples.map((_,j)=>j));
   card.querySelector('.gallery-open').onclick=()=>openGallery(i);
   const symbolSelect=card.querySelector('.class-symbol');for(const [value,number] of Object.entries(actionNumbers)){const option=document.createElement('option');option.value=value;option.textContent=number;option.setAttribute('aria-label',number+' – '+symbolLabels[value]);symbolSelect.append(option)}
-  symbolSelect.value=getClassSymbol(i);renderLED(card.querySelector('.class-action-preview'),getClassSymbol(i));
+  symbolSelect.value=getClassSymbol(i);renderNumberLED(card.querySelector('.class-action-preview'),getClassSymbol(i));
   symbolSelect.onchange=()=>setClassSymbol(i,symbolSelect.value);
   const rec=card.querySelector('.record');rec.addEventListener('pointerdown',e=>{e.preventDefault();rec.setPointerCapture(e.pointerId);startCapture(i,false)});
   ['pointerup','pointercancel','lostpointercapture'].forEach(event=>rec.addEventListener(event,()=>{if(recording?.i===i&&!recording.series)stopCapture()}));
@@ -317,7 +317,9 @@ $('restorePrevious').onclick=async()=>{
  if(training||restoring||extracting)return;const previous=await LabStorage.read('previous').catch(()=>null);if(!previous){$('projectDialogStatus').textContent='Noch kein vorheriges Projekt vorhanden.';return}stopCapture();stopPrediction();const current=makeSnapshot();restoring=true;invalidate();undoDeletion=null;$('undoBar').hidden=true;await restoreProject(previous);await LabStorage.write(current,'previous');await saveNow(true);$('newProjectDialog').close();toast('Vorheriges Projekt wiederhergestellt.');
 };
 const patterns=MicrobitTransport.symbols;
-function renderLED(element,pattern){if(!element)return;const rows=patterns[pattern]||patterns.square;if(!element.children.length)for(let i=0;i<25;i++)element.append(document.createElement('i'));[...element.children].forEach((led,i)=>led.classList.toggle('lit',!!(rows[Math.floor(i/5)]&(1<<(4-i%5)))));element.dataset.pattern=pattern}
+const numberPatterns={number1:[4,12,4,4,14],number2:[14,17,2,4,31],number3:[30,1,6,1,30],number4:[18,18,31,2,2],number5:[31,16,30,1,30],number6:[15,16,30,17,14],number7:[31,2,4,8,8],number8:[14,17,14,17,14],number9:[14,17,15,1,30],number10:[23,21,21,21,23]};
+function renderLED(element,pattern){if(!element)return;const rows=numberPatterns[pattern]||patterns[pattern]||patterns.square;if(!element.children.length)for(let i=0;i<25;i++)element.append(document.createElement('i'));[...element.children].forEach((led,i)=>led.classList.toggle('lit',!!(rows[Math.floor(i/5)]&(1<<(4-i%5)))));element.dataset.pattern=pattern}
+function renderNumberLED(element,symbol){renderLED(element,'number'+(actionNumbers[symbol]||'1'))}
 function updateBitUI(){
  const connected=!!bitLink?.connected;$('connectBtn').disabled=bitConnecting||connected;$('connectBtn').textContent=bitConnecting?'Verbinde …':bitMode==='usb'?'micro:bit über USB verbinden':bitMode==='native'?'micro:bit in iPad-App verbinden':'micro:bit über Bluetooth verbinden';$('disconnectBtn').hidden=!connected;$('testLedBtn').disabled=!connected||!bitReady||bitTesting;$('testLedBtn').textContent=bitTesting?'Warte auf Antwort …':'Herz senden und Antwort prüfen';$('bitGoLive').disabled=!trained||training;$('bitGoLive2').disabled=!trained||training;
  updateConnectionBadge();
@@ -332,14 +334,14 @@ const actionNumbers=Object.fromEntries(Object.entries(MicrobitTransport.COMMAND_
 function setClassSymbol(slot,symbol){
  const c=classes[slot];if(!c||!Object.hasOwn(actionNumbers,symbol))return;
  c.symbol=symbol;const card=$('class'+slot);
- if(card){card.querySelector('.class-symbol').value=symbol;renderLED(card.querySelector('.class-action-preview'),symbol)}
+ if(card){card.querySelector('.class-symbol').value=symbol;renderNumberLED(card.querySelector('.class-action-preview'),symbol)}
  renderBitMappings();scheduleSave();
  if(currentClass===slot){currentSymbol=symbol;$('liveAction').textContent=actionNumbers[symbol];sendCurrent()}
 }
 function renderBitMappings(){
  const container=$('bitMappings');container.replaceChildren();const occupied=classes.map((c,i)=>({c,i})).filter(({c})=>c.samples.length);
  if(!occupied.length){const p=document.createElement('p');p.className='mapping-empty';p.textContent='Wähle die micro:bit-Aktion schon beim Sammeln direkt bei deiner Klasse. Nach der ersten Aufnahme erscheint sie auch hier.';container.append(p);return}
- occupied.forEach(({c,i})=>{const row=document.createElement('div');row.className='symbol-row';const matrix=document.createElement('div');matrix.className='led-matrix symbol-mini';matrix.setAttribute('aria-hidden','true');renderLED(matrix,getClassSymbol(i));const label=document.createElement('label');const name=document.createElement('span');name.textContent=c.name;const select=document.createElement('select');select.setAttribute('aria-label','Zahl für '+c.name);for(const [value,number] of Object.entries(actionNumbers)){const option=document.createElement('option');option.value=value;option.textContent=number;option.setAttribute('aria-label',number+' – '+symbolLabels[value]);select.append(option)}select.value=getClassSymbol(i);select.onchange=()=>setClassSymbol(i,select.value);label.append(name,select);row.append(matrix,label);container.append(row)});
+ occupied.forEach(({c,i})=>{const row=document.createElement('div');row.className='symbol-row';const matrix=document.createElement('div');matrix.className='led-matrix symbol-mini';matrix.setAttribute('aria-hidden','true');renderNumberLED(matrix,getClassSymbol(i));const label=document.createElement('label');const name=document.createElement('span');name.textContent=c.name;const select=document.createElement('select');select.setAttribute('aria-label','Zahl für '+c.name);for(const [value,number] of Object.entries(actionNumbers)){const option=document.createElement('option');option.value=value;option.textContent=number;option.setAttribute('aria-label',number+' – '+symbolLabels[value]);select.append(option)}select.value=getClassSymbol(i);select.onchange=()=>setClassSymbol(i,select.value);label.append(name,select);row.append(matrix,label);container.append(row)});
 }
 function openTeacher(){stopPrediction();$('setupDialog').showModal()}
 $('teacherBtn').onclick=openTeacher;$('teacherQuick').onclick=openTeacher;

@@ -1,8 +1,8 @@
-# micro:bit Kameralabor
+# Teachable Labor
 
-Statische Web-App für iPad und Windows. In GitHub Pages: main / (root).
+Statische Web-App für iPad und Windows zum Trainieren einer einfachen Kamera-KI mit dem micro:bit. In GitHub Pages: main / (root).
 
-Die Bilder und Projekte liegen lokal im Browser. Vor dem Wechsel der Adresse Projektdatei (.json) aus dem alten Kameralabor speichern und unter der neuen Adresse wieder öffnen.
+Die Bilder und Projekte liegen lokal im Browser. Vor dem Wechsel der Adresse Projektdatei (.json) aus der alten Kameralabor-Version speichern und unter der neuen Adresse wieder öffnen.
 
 ## micro:bit-Befehle
 

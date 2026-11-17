@@ -86,7 +86,23 @@ function updateControls(){
 }
 
 function renderBars(probs){
- const rows=$('predictionBars');rows.replaceChildren();classes.forEach((c,i)=>{if(!c.samples.length)return;const row=document.createElement('div');row.className='predrow';const label=document.createElement('div');label.className='predlabel';const name=document.createElement('span');name.textContent=c.name;const value=document.createElement('strong');value.textContent=probs?Math.round(probs[i]*100)+' %':'—';label.append(name,value);const track=document.createElement('div');track.className='track';const bar=document.createElement('i');bar.style.background=colors[i];bar.style.width=probs?probs[i]*100+'%':'0%';track.append(bar);row.append(label,track);rows.append(row)})
+ const rows=$('predictionBars');rows.replaceChildren();
+ const active=classes.map((c,i)=>({c,i})).filter(({c})=>c.samples.length);
+ const best=probs&&active.length?active.reduce((a,b)=>(probs[b.i]||0)>(probs[a.i]||0)?b:a,active[0]).i:-1;
+ active.forEach(({c,i})=>{
+  const score=probs?Math.max(0,Math.min(1,probs[i]||0)):0;
+  const row=document.createElement('div');row.className='predrow prediction-card'+(i===best?' is-leading':'');row.style.setProperty('--class-color',colors[i]);
+  const top=document.createElement('div');top.className='prediction-top';
+  const identity=document.createElement('div');identity.className='prediction-identity';
+  const dot=document.createElement('span');dot.className='prediction-dot';dot.textContent=i+1;
+  const name=document.createElement('strong');name.textContent=c.name;
+  identity.append(dot,name);
+  const value=document.createElement('b');value.className='prediction-value';value.textContent=probs?Math.round(score*100)+' %':'—';
+  top.append(identity,value);
+  const track=document.createElement('div');track.className='track prediction-track';const bar=document.createElement('i');bar.style.background=colors[i];bar.style.width=probs?score*100+'%':'0%';track.append(bar);
+  const caption=document.createElement('small');caption.className='prediction-caption';caption.textContent=i===best&&probs?'höchste Übereinstimmung':'';
+  row.append(top,track,caption);rows.append(row);
+ })
 }
 function invalidate(){savedModel=null;oneClass=null;activeIndices=[];showTrainMessage('');revision++;stopPrediction();trained=false;if(head){head.dispose();head=null}$('resultBadge').textContent='Neu trainieren';$('resultTitle').textContent='Was sieht deine KI?';renderBars();updateControls()}
 async function loadBase(){
@@ -181,7 +197,7 @@ async function predictLoop(){
    let probs;if(oneClass){probs=CameraLabCore.mapProbabilities([CameraLabCore.singleScore(row,oneClass)],activeIndices)}else{const output=tf.tidy(()=>head.predict(tf.tensor2d([row])));try{probs=CameraLabCore.mapProbabilities(Array.from(await output.data()),activeIndices)}finally{output.dispose()}}
    if(!predicting||myRevision!==revision||mySerial!==predictSerial)break;lastInference=performance.now();renderBars(probs);
    const result=gate.update(probs,confidence,lastInference);const best=probs.indexOf(Math.max(...probs));
-   $('resultTitle').textContent=oneClass&&result.index<0?'Keine sichere Übereinstimmung':classes[best].name;$('resultBadge').textContent=result.index<0?'Noch unsicher':'Stabil erkannt';
+   const high=Math.max(...probs);$('resultTitle').textContent=result.index<0?(oneClass?'Noch keine sichere Übereinstimmung':'Ich prüfe …'):'Ich sehe: '+classes[best].name;$('resultBadge').textContent=Math.round(high*100)+' %';$('resultBadge').classList.toggle('recognized',result.index>=0);
    setCommand(result.index<0?'STOPP':classes[result.index].command,result.reason,result.index);
   }catch(e){stopPrediction();toast('Erkennung angehalten: '+e.message);break}
   await new Promise(resolve=>setTimeout(resolve,140));

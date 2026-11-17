@@ -332,3 +332,54 @@ header .project-name{min-width:170px;max-width:220px}
  .result-heading{align-items:center}
  .result-heading h2{font-size:22px}
 }
+
+
+/* Live recognition scale-up + accessible start button */
+.results{gap:16px}
+.result-heading h2{font-size:38px}
+.result-heading .chip{font-size:18px;padding:10px 16px}
+.live-actions{gap:12px}
+.live-actions button{min-height:58px;font-size:16px;font-weight:850}
+#predictBtn.primary{
+  background:#ffd84a;
+  color:#322700;
+  border:2px solid #e0b827;
+  box-shadow:0 4px 0 #bd9414;
+}
+#predictBtn.primary:hover:not(:disabled){
+  background:#ffe36b;
+}
+#predictBtn.primary:focus-visible{
+  outline:3px solid #5a2ca0;
+}
+#predictionBars{grid-template-columns:1fr;gap:14px}
+.prediction-card{padding:18px 18px 15px;border-radius:18px}
+.prediction-dot{width:40px;height:40px;font-size:18px;border-radius:11px}
+.prediction-identity strong{font-size:22px}
+.prediction-value{font-size:38px}
+.prediction-card.is-leading .prediction-value{font-size:48px}
+.prediction-track{height:16px;margin:13px 0 7px}
+.prediction-caption{font-size:12px;min-height:16px}
+.command-box{padding:18px 20px;min-height:118px}
+.command-box>span{font-size:10px}
+.command-box .live-flow strong{font-size:34px}
+.live-flow>span{font-size:28px}
+.live-flow b{font-size:30px}
+.command-box .live-delivery{font-size:13px}
+.command-box small{font-size:12px}
+@media(max-width:1200px){
+ .result-heading h2{font-size:32px}
+ .prediction-identity strong{font-size:19px}
+ .prediction-value{font-size:32px}
+ .prediction-card.is-leading .prediction-value{font-size:40px}
+}
+@media(max-width:800px){
+ .result-heading h2{font-size:28px}
+ .live-actions button{min-height:54px;font-size:15px}
+ .prediction-card{padding:15px}
+ .prediction-dot{width:34px;height:34px}
+ .prediction-identity strong{font-size:18px}
+ .prediction-value{font-size:28px}
+ .prediction-card.is-leading .prediction-value{font-size:34px}
+ .prediction-track{height:13px}
+}

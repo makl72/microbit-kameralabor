@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const {TARGET,MIN,MAX}=CameraLabCore;
-const colors=['#d6f06b','#c8bcf8','#ffc799','#a7d7ef','#f2bdc9'];
+const colors=['#ffc43d','#4285e9','#42c83d','#f2558c','#9a4de0'];
 let classes=[['Offene Hand','STOPP'],['Faust','VORWAERTS'],['Zeichen links','LINKS'],['Zeichen rechts','RECHTS'],['Hintergrund / keine Geste','STOPP']].map(([name,command])=>({name,command,samples:[],images:[],thumb:''}));
 let stream=null,front=false,base=null,basePromise=null,head=null,trained=false,training=false,predicting=false,recording=null,extracting=false,cameraStarting=false,revision=0,trainMessage='',trainError=false;
 let currentCommand='STOPP',lastInference=0,lastLogged='',toastTimer;

@@ -167,3 +167,64 @@ dialog a{color:#7635bf}
   .panel-heading h2{font-size:17px}
   .tip{display:none}
 }
+
+
+/* MakeCode-like class blocks */
+.classes-section{background:#fff}
+.class-name-hint{max-width:680px}
+.class-tabs{grid-template-columns:repeat(5,minmax(94px,1fr));gap:8px;overflow-x:auto;padding:2px 1px 5px;scrollbar-width:thin}
+.class-tabs button{position:relative;align-items:flex-start;text-align:left;padding:10px 12px 9px;min-height:78px;border:0;border-radius:12px;background:var(--tab-accent);color:#fff;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12),0 3px 9px rgba(43,45,91,.08);overflow:hidden}
+.class-tabs button::after{content:"";position:absolute;right:-15px;top:50%;width:30px;height:30px;background:#fff;transform:translateY(-50%) rotate(45deg);opacity:.13}
+.class-tabs button:nth-child(1){--tab-accent:#f3b51b;color:#33270a}
+.class-tabs button:nth-child(2){--tab-accent:#3f82e5}
+.class-tabs button:nth-child(3){--tab-accent:#36b936}
+.class-tabs button:nth-child(4){--tab-accent:#ed4f86}
+.class-tabs button:nth-child(5){--tab-accent:#9345d7}
+.class-tabs button.selected{border:0;background:var(--tab-accent);transform:translateY(-2px);box-shadow:inset 0 -4px 0 rgba(0,0,0,.13),0 0 0 3px #fff,0 0 0 6px #6d2db3,0 7px 16px rgba(72,37,124,.18)}
+.class-tabs button:disabled{opacity:.58}
+.class-tabs b{display:grid;place-items:center;width:27px;height:27px;flex:none;border-radius:50%;background:#ffffffd9;color:#34245e;font-size:14px;margin-bottom:4px;box-shadow:0 1px 2px #0002}
+.class-tabs small{display:block;width:100%;font-size:12px;line-height:1.15;color:inherit;font-weight:850;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.class-tabs span{font-size:10px;color:inherit;opacity:.88;margin-top:2px}
+.classcard{border-top:0;padding-top:4px;gap:12px}
+.card-top{background:#faf9ff;border:1px solid #e6e1f2;border-radius:13px;padding:10px 11px}
+.classnumber{width:36px;height:36px;border-radius:9px;background:var(--color);color:#fff;box-shadow:inset 0 -3px 0 #0002;font-size:17px}
+.classcard:first-child .classnumber{color:#3b2b0a}
+.name-field>span{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.class-name{min-height:42px;border:1px solid #ddd6eb;background:#fff;font-size:15px}
+.card-body{display:grid;grid-template-columns:78px minmax(0,1fr);align-items:center;gap:12px;padding:11px;border:1px solid #e6e2f1;border-radius:14px;background:#fff}
+.thumbnail{grid-row:1 / span 2;width:78px;height:78px;border:2px solid #ebe6f4}
+.sampleinfo{min-width:0}
+.capturebuttons{grid-column:2;display:grid;grid-template-columns:1.4fr .8fr;gap:8px}
+.capturebuttons button{min-height:46px}
+.record{background:var(--color);color:#fff;box-shadow:inset 0 -3px 0 #0002}
+.classcard:first-child .record{color:#33270a}
+.series{background:#f1edfa;color:#5d3b84;border:1px solid #ddd2ee}
+.photo-review{padding:9px 10px;border-style:solid;background:#fbfaff}
+.photo-review-head strong{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#706487}
+.photo-review-head button{background:transparent;border:0;color:#6d35a2;text-decoration:underline}
+.action-choice{padding:9px 11px;border:1px solid #d9c9ef;background:#f4edff}
+.action-choice strong::before{content:"micro:bit · ";color:#8d63b4}
+.collect-footer{border-top:1px solid #ebe7f2;padding-top:10px}
+.collect-footer .secondary{background:#7d2dcc;color:#fff;border:0;box-shadow:0 3px 0 #5e1fa1}
+@media(max-width:1000px){
+ .class-tabs{grid-template-columns:repeat(5,minmax(82px,1fr))}
+ .class-tabs button{padding:8px 9px;min-height:72px}
+}
+@media(max-width:800px){
+ .class-tabs{grid-template-columns:repeat(5,minmax(105px,1fr));margin-inline:-2px}
+ .classcard{gap:10px}
+ .card-body{grid-template-columns:64px minmax(0,1fr)}
+ .thumbnail{width:64px;height:64px}
+}
+@media(max-width:500px){
+ .class-tabs{grid-template-columns:repeat(5,104px)}
+ .class-tabs button{min-height:68px}
+ .card-top{gap:7px;padding:8px}
+ .classnumber{width:31px;height:31px;font-size:14px}
+ .card-top .clear{font-size:10px;padding:6px}
+ .card-body{grid-template-columns:56px minmax(0,1fr);padding:8px}
+ .thumbnail{width:56px;height:56px}
+ .capturebuttons{grid-template-columns:1fr 1fr}
+ .photo-review-head{align-items:flex-start}
+ .photo-review-head button{white-space:normal;text-align:right}
+}

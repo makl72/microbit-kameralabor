@@ -18,14 +18,14 @@
   function singleScore(row,profile){const ref=normalize(row);const similarity=Math.max(...profile.refs.map(r=>cosine(ref,r)));return Math.max(0,Math.min(.99,.95*(similarity-profile.floor)/(profile.reference-profile.floor)))}
   function mapProbabilities(values,indices){const result=Array(5).fill(0);indices.forEach((slot,i)=>result[slot]=values[i]);return result}
   function command(s){return /^[A-Z0-9_]{1,18}$/.test(s)}
-  function projectFilename(name){return ((name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'kameralabor-projekt')+'.json'}
+  function projectFilename(name){return ((name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'teachable-labor-projekt')+'.json'}
   function projectNameForFile(filename,embeddedName){
     const embedded=typeof embeddedName==='string'?embeddedName.trim().slice(0,60):'';
     const stem=typeof filename==='string'&&/\.json$/i.test(filename)?filename.slice(0,-5).trim().slice(0,60):'';
     return stem&&filename!==projectFilename(embedded)?stem:embedded||stem||'Importiertes Experiment';
   }
   function validateProject(p){
-    if(!p||p.format!=='microbit-kameralabor-v1'||p.base!=='mobilenet-v1-050'||!Array.isArray(p.classes)||p.classes.length!==5)throw Error('Keine passende Kameralabor-Projektdatei (fünf Klassen erforderlich).');
+    if(!p||p.format!=='microbit-kameralabor-v1'||p.base!=='mobilenet-v1-050'||!Array.isArray(p.classes)||p.classes.length!==5)throw Error('Keine passende Teachable-Labor-Projektdatei (fünf Klassen erforderlich).');
     let dim=null;
     const classes=p.classes.map((c,i)=>{
       if(!c||typeof c.name!=='string'||c.name.length>60||!command(c.command)||!Array.isArray(c.samples)||c.samples.length>MAX)throw Error('Ungültige Klasse '+(i+1)+'.');

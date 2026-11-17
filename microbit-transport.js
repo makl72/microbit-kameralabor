@@ -2,15 +2,16 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;root.MicrobitTransport=api})(typeof window==='undefined'?globalThis:window,function(){
  const SERVICE='6e400001-b5a3-f393-e0a9-e50e24dcca9e',TX='6e400002-b5a3-f393-e0a9-e50e24dcca9e',RX='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
  const symbols={off:[0,0,0,0,0],heart:[10,31,31,14,4],giraffe:[24,8,8,14,10],smile:[0,10,0,17,14],left:[4,8,31,8,4],right:[4,2,31,2,4],up:[4,14,21,4,4],down:[4,4,21,14,4],check:[0,1,2,20,8],cross:[17,10,4,10,17],square:[31,17,17,17,31]};
+ const COMMAND_CODES=Object.freeze({OFF:'1',HEART:'2',SMILE:'3',LEFT:'4',RIGHT:'5',UP:'6',CHECK:'7',CROSS:'8',SQUARE:'9',DOWN:'10'});
  const encoder=new TextEncoder();
  class Link{
   constructor(onDisconnect=()=>{},timeout=3500){this.onDisconnect=onDisconnect;this.timeout=timeout;this.connected=false;this.pending=null;this.chain=Promise.resolve();this.buffer='';this.decoder=new TextDecoder();this.closing=false}
   async probe(){try{await this.send('PING')}catch(e){await new Promise(resolve=>setTimeout(resolve,350));await this.send('PING')}}
   receive(bytes){this.buffer+=this.decoder.decode(bytes,{stream:true});if(this.buffer.length>512)this.buffer=this.buffer.slice(-128);let index;while((index=this.buffer.indexOf('\n'))>=0){const line=this.buffer.slice(0,index).replace(/\r/g,'').trim();this.buffer=this.buffer.slice(index+1);if(this.pending&&line===this.pending.expected){this.pending.resolve(line);this.pending=null}}}
   fail(error){if(this.pending){this.pending.reject(error);this.pending=null}if(this.connected&&!this.closing){this.connected=false;this.onDisconnect()}}
-  send(command){if(!this.connected)return Promise.reject(Error('Nicht verbunden'));if(!/^(PING|HEART|SMILE|LEFT|RIGHT|UP|DOWN|CHECK|CROSS|SQUARE|OFF)$/.test(command))return Promise.reject(Error('Unbekannter Befehl'));
-   const task=async()=>{if(!this.connected)throw Error('Verbindung getrennt');const expected=command==='PING'?'PONG':'OK:'+command;let timer;const response=new Promise((resolve,reject)=>{this.pending={expected,resolve,reject};timer=setTimeout(()=>{if(this.pending?.expected===expected){this.pending=null;reject(Error('Der micro:bit antwortet nicht. Startprogramm und Verbindung prüfen.'))}},this.timeout)});
-    try{await this.write(encoder.encode(command+'\n'));return await response}catch(e){if(this.pending?.expected===expected){this.pending=null}response.catch(()=>{});throw e}finally{clearTimeout(timer)}};
+  send(command){if(!this.connected)return Promise.reject(Error('Nicht verbunden'));if(command!=='PING'&&!Object.hasOwn(COMMAND_CODES,command))return Promise.reject(Error('Unbekannter Befehl'));
+   const task=async()=>{if(!this.connected)throw Error('Verbindung getrennt');const wireCommand=command==='PING'?'PING':COMMAND_CODES[command];const expected=command==='PING'?'PONG':'OK:'+wireCommand;let timer;const response=new Promise((resolve,reject)=>{this.pending={expected,resolve,reject};timer=setTimeout(()=>{if(this.pending?.expected===expected){this.pending=null;reject(Error('Der micro:bit antwortet nicht. Startprogramm und Verbindung prüfen.'))}},this.timeout)});
+    try{await this.write(encoder.encode(wireCommand+'\n'));return await response}catch(e){if(this.pending?.expected===expected){this.pending=null}response.catch(()=>{});throw e}finally{clearTimeout(timer)}};
    const promise=this.chain.then(task);this.chain=promise.catch(()=>{});return promise;
   }
  }
@@ -33,5 +34,5 @@
   async write(bytes){if(this.rx.writeValueWithResponse)await this.rx.writeValueWithResponse(bytes);else await this.rx.writeValue(bytes)}
   async disconnect(){this.closing=true;this.connected=false;this.fail(Error('Bluetooth getrennt'));try{this.tx?.removeEventListener('characteristicvaluechanged',this.onValue)}catch(e){}try{this.device?.gatt?.disconnect()}catch(e){}this.rx=null;this.tx=null;this.device=null}
  }
- return {SERVICE,TX,RX,symbols,USBLink,BLELink,NativeLink};
+ return {SERVICE,TX,RX,symbols,COMMAND_CODES,USBLink,BLELink,NativeLink};
 });

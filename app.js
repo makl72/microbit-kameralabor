@@ -88,6 +88,7 @@ function updateControls(){
 function renderBars(probs){
  const rows=$('predictionBars');rows.replaceChildren();
  const active=classes.map((c,i)=>({c,i})).filter(({c})=>c.samples.length);
+ rows.dataset.classCount=String(active.length);
  const best=probs&&active.length?active.reduce((a,b)=>(probs[b.i]||0)>(probs[a.i]||0)?b:a,active[0]).i:-1;
  active.forEach(({c,i})=>{
   const score=probs?Math.max(0,Math.min(1,probs[i]||0)):0;

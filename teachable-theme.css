@@ -293,3 +293,42 @@ header .project-name{min-width:170px;max-width:220px}
  .photo-strip{min-height:40px}
  .action-choice{min-height:52px;padding:7px 9px}
 }
+
+
+/* Live recognition: make the AI decision the visual focus */
+.results{gap:13px}
+.result-heading{align-items:flex-end;padding-bottom:4px}
+.result-heading h2{font-size:30px;line-height:1.05;color:#56209a}
+.result-heading .chip{font-size:15px;font-weight:850;padding:8px 13px;background:#efe7ff;color:#6e35aa;border:1px solid #dfcef7}
+.result-heading .chip.recognized{background:#dcf7e2;color:#1f7b39;border-color:#a6ddb4;box-shadow:0 0 0 3px #eefbf1}
+#predictionBars{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;align-content:start}
+.prediction-card{position:relative;margin:0;padding:13px 14px 11px;background:#f8f8fc;border:2px solid #e7e7f1;border-radius:15px;transition:transform .12s,border-color .12s,box-shadow .12s,background .12s;overflow:hidden}
+.prediction-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:7px;background:var(--class-color)}
+.prediction-card.is-leading{background:#fff;border-color:var(--class-color);transform:translateY(-2px);box-shadow:0 8px 20px rgba(45,45,92,.14),0 0 0 2px color-mix(in srgb,var(--class-color) 25%,transparent)}
+.prediction-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.prediction-identity{display:flex;align-items:center;gap:10px;min-width:0}
+.prediction-dot{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--class-color);color:#fff;font-weight:900;box-shadow:inset 0 -3px 0 #0002;flex:none}
+.prediction-identity strong{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#2d355d}
+.prediction-value{font-size:26px;letter-spacing:-1px;color:#30375f;white-space:nowrap}
+.prediction-card.is-leading .prediction-value{font-size:32px;color:#55218e}
+.prediction-track{height:11px;margin:10px 0 5px;background:#e7e8f1}
+.prediction-track i{transition:width .16s ease}
+.prediction-caption{display:block;min-height:14px;font-size:10px;font-weight:750;color:#73539a;text-transform:uppercase;letter-spacing:.5px}
+.command-box{border:2px solid #4a357c;box-shadow:0 6px 16px #2e1d5b1c}
+.command-box>span{font-size:9px;color:#cab6f4}
+.command-box .live-flow strong{font-size:28px}
+.live-flow b{font-size:24px}
+@media(max-width:1000px){
+ #predictionBars{grid-template-columns:1fr}
+ .result-heading h2{font-size:25px}
+ .prediction-value{font-size:22px}
+ .prediction-card.is-leading .prediction-value{font-size:27px}
+}
+@media(max-width:800px){
+ #predictionBars{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:560px){
+ #predictionBars{grid-template-columns:1fr}
+ .result-heading{align-items:center}
+ .result-heading h2{font-size:22px}
+}

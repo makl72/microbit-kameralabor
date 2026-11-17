@@ -210,7 +210,15 @@ async function sendCurrent(){
  if(!bitLink?.connected||!bitReady)return;if(sending){pendingSymbol=true;return}sending=true;
  const link=bitLink;
  try{do{pendingSymbol=false;const value=currentSymbol.toUpperCase();if(currentClass>=0)$('liveDelivery').textContent='Wird gesendet …';await link.send(value);if(link===bitLink){$('linkLiveStatus').textContent='micro:bit: Zahl '+actionNumbers[value.toLowerCase()]+' bestätigt.';if(value===currentSymbol.toUpperCase()&&currentClass>=0)$('liveDelivery').textContent='✓ micro:bit bestätigt'}}while(pendingSymbol&&link===bitLink&&link.connected)}
- catch(e){if(link===bitLink){$('linkLiveStatus').textContent='micro:bit: Keine Antwort. Verbindung im micro:bit-Bereich prüfen.';if(currentClass>=0)$('liveDelivery').textContent='Keine Antwort';await link.disconnect();bitReady=false;updateBitUI()}}
+ catch(e){if(link===bitLink){
+  $('linkLiveStatus').textContent='micro:bit: Antwort ausgeblieben. Verbindung wird geprüft …';
+  if(currentClass>=0)$('liveDelivery').textContent='Antwort wird geprüft';
+  let reachable=false;
+  if(link.connected){try{await link.probe();reachable=true}catch(probeError){}}
+  if(link!==bitLink)return;
+  if(reachable){$('linkLiveStatus').textContent='micro:bit: Verbindung steht noch. Letzter Befehl wurde nicht bestätigt.';if(currentClass>=0)$('liveDelivery').textContent='Nicht bestätigt · Erkennung erneut zeigen'}
+  else{await link.disconnect();bitLink=null;bitReady=false;$('bitStatus').textContent='micro:bit antwortet nicht mehr. USB-Kabel und COM-Port prüfen, dann erneut verbinden.';$('linkLiveStatus').textContent='micro:bit: Keine Antwort auf PING. Bitte erneut verbinden.';if(currentClass>=0)$('liveDelivery').textContent='micro:bit getrennt';updateBitUI()}
+ }}
  finally{sending=false}
 }
 function onBitDisconnect(error){const link=bitLink;bitLink=null;bitReady=false;const detail=link instanceof MicrobitTransport.USBLink?'USB getrennt: '+(error?.message||'Kabel und COM-Port prüfen.'):'Verbindung getrennt.';$('bitStatus').textContent=detail;$('linkLiveStatus').textContent='micro:bit: '+detail+' Die KI erkennt weiter.';if(currentClass>=0)$('liveDelivery').textContent='Vorschau · micro:bit getrennt';updateBitUI();if(link)void link.disconnect()}

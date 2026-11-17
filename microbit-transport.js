@@ -8,7 +8,7 @@
   constructor(onDisconnect=()=>{},timeout=3500){this.onDisconnect=onDisconnect;this.timeout=timeout;this.connected=false;this.pending=null;this.chain=Promise.resolve();this.buffer='';this.decoder=new TextDecoder();this.closing=false}
   async probe(){try{await this.send('PING')}catch(e){await new Promise(resolve=>setTimeout(resolve,350));await this.send('PING')}}
   receive(bytes){this.buffer+=this.decoder.decode(bytes,{stream:true});if(this.buffer.length>512)this.buffer=this.buffer.slice(-128);let index;while((index=this.buffer.indexOf('\n'))>=0){const line=this.buffer.slice(0,index).replace(/\r/g,'').trim();this.buffer=this.buffer.slice(index+1);if(this.pending&&line===this.pending.expected){this.pending.resolve(line);this.pending=null}}}
-  fail(error){if(this.pending){this.pending.reject(error);this.pending=null}if(this.connected&&!this.closing){this.connected=false;this.onDisconnect()}}
+  fail(error){if(this.pending){this.pending.reject(error);this.pending=null}if(this.connected&&!this.closing){this.connected=false;this.onDisconnect(error)}}
   send(command){if(!this.connected)return Promise.reject(Error('Nicht verbunden'));if(command!=='PING'&&!Object.hasOwn(COMMAND_CODES,command))return Promise.reject(Error('Unbekannter Befehl'));
    const task=async()=>{if(!this.connected)throw Error('Verbindung getrennt');const wireCommand=command==='PING'?'PING':COMMAND_CODES[command];const expected=command==='PING'?'PONG':'OK:'+wireCommand;let timer;const response=new Promise((resolve,reject)=>{this.pending={expected,resolve,reject};timer=setTimeout(()=>{if(this.pending?.expected===expected){this.pending=null;reject(Error('Der micro:bit antwortet nicht. Startprogramm und Verbindung prüfen.'))}},this.timeout)});
     try{await this.write(encoder.encode(wireCommand+'\n'));return await response}catch(e){if(this.pending?.expected===expected){this.pending=null}response.catch(()=>{});throw e}finally{clearTimeout(timer)}};
@@ -18,7 +18,23 @@
  class USBLink extends Link{
   constructor(serial,onDisconnect,timeout){super(onDisconnect,timeout);this.serial=serial;this.port=null;this.reader=null}
   async connect(){if(!this.serial?.requestPort)throw Error('USB aus Webseiten braucht Chrome oder Edge auf Windows.');this.port=await this.serial.requestPort();try{await this.port.open({baudRate:115200});if(!this.port.readable||!this.port.writable)throw Error('Kein serieller USB-Anschluss. Wähle den micro:bit-Anschluss.');this.connected=true;this.closing=false;this.pump=this.readLoop();await this.probe();return 'USB'}catch(e){await this.disconnect();throw e}}
-  async readLoop(){try{this.reader=this.port.readable.getReader();while(this.connected){const {value,done}=await this.reader.read();if(done)break;if(value)this.receive(value)}}catch(e){if(!this.closing)this.fail(e)}finally{try{this.reader?.releaseLock()}catch(e){}this.reader=null;if(!this.closing)this.fail(Error('USB getrennt'))}}
+  async readLoop(){
+   let error=Error('USB-Verbindung unterbrochen. Kabel, Stromversorgung und COM-Port prüfen.');
+   try{
+    while(this.connected&&this.port?.readable){
+     const reader=this.port.readable.getReader();this.reader=reader;
+     let ended=false;
+     try{
+      while(this.connected){const {value,done}=await reader.read();if(done){ended=true;break}if(value)this.receive(value)}
+     }catch(e){error=e}
+     finally{try{reader.releaseLock()}catch(e){}if(this.reader===reader)this.reader=null}
+     if(ended)break;
+     // Web Serial replaces the stream after a recoverable read error.
+     if(this.connected&&this.port?.readable)await new Promise(resolve=>setTimeout(resolve,100));
+    }
+   }catch(e){error=e}
+   finally{if(!this.closing)this.fail(error)}
+  }
   async write(bytes){const writer=this.port.writable.getWriter();try{await writer.write(bytes)}finally{writer.releaseLock()}}
   async disconnect(){this.closing=true;this.connected=false;this.fail(Error('USB getrennt'));try{await this.reader?.cancel()}catch(e){}try{await this.pump}catch(e){}try{await this.port?.close()}catch(e){}this.port=null}
  }

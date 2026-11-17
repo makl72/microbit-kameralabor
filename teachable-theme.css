@@ -1,0 +1,169 @@
+/* Teachable Labor — MakeCode-inspired visual layer.
+   Presentation only. Original controls, IDs, saved projects and transport remain unchanged. */
+:root {
+  --ink:#23305a;
+  --muted:#63708e;
+  --paper:#f4f5fd;
+  --line:#e1e4f3;
+  --green:#8e3ce5;
+  --dark:#30225a;
+  --tl-purple:#7023b8;
+  --tl-purple-dark:#54138f;
+  --tl-lilac:#f2eaff;
+  --tl-shadow:0 8px 26px rgba(39,42,99,.095);
+}
+body{background:var(--paper);color:var(--ink);font-size:14px}
+button{border-radius:11px;transition:background-color .15s,border-color .15s,transform .15s;box-shadow:none}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #f5b82e;outline-offset:3px}
+button:not(:disabled):active{transform:translateY(1px)}
+.primary{background:linear-gradient(180deg,#a34ef2,#7e23d4);color:#fff;box-shadow:0 3px 0 #6217a7}
+.primary:hover:not(:disabled){background:linear-gradient(180deg,#ad5bf8,#8e31e4)}
+.secondary{background:#f3edff;color:#592495;border:1px solid #dac4f6}
+.secondary:hover:not(:disabled){background:#e9dcff}
+.stop{background:#ffedf1;color:#af2b55}
+.plain{color:#62448b}
+header{height:84px;min-height:84px;padding:10px 22px;background:linear-gradient(110deg,#7826be,#4c158e);border-bottom:0;color:#fff;box-shadow:0 3px 12px #37105d24;gap:16px}
+.brand-wrap{display:flex;align-items:center;gap:22px;min-width:0}
+.brand{color:#fff;font-size:25px;font-weight:850;letter-spacing:-.7px;gap:12px}
+.brand-titles{display:flex;flex-direction:column;line-height:1.1}
+.brand-titles small{font-size:11px;font-weight:500;letter-spacing:0;color:#f0dfff;margin-top:6px;white-space:nowrap}
+.brand-mark{display:grid;place-items:center;background:#211a46;border:3px solid #fff;color:#ffd33a;width:48px;height:46px;border-radius:13px;transform:rotate(-9deg);font-size:26px;box-shadow:0 4px 0 #32105b}
+header .project-name{background:#ffffff1c;border:1px solid #ffffff4b;color:#fff;min-height:38px;border-radius:9px;padding:8px 12px}
+header .project-name:focus{background:#fff;color:#352052}
+header .project-name::placeholder{color:#fff9}
+.header-actions{gap:9px}
+header .privacy{color:#eaddff;font-size:10px;max-width:160px}
+header .privacy.error{color:#ffe3b8}
+header .plain{color:#fff;background:#ffffff1a;border:1px solid #ffffff24}
+header .bit-connection-badge{background:#ffffff16;border:1px solid #ffffff75;color:#fff;font-weight:700}
+header .bit-connection-badge[data-state="ready"]{background:#baf2cf;color:#205a38;border-color:#85dca3}
+header .bit-connection-badge[data-state="connecting"]{background:#ffecae;color:#704f10}
+.header-giraffe.giraffe-matrix.led-matrix{background:#31205f;border:2px solid #f8e8ff}
+main{padding:13px 18px 18px;gap:15px}
+.app-toolbar{height:66px;gap:12px}
+.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));flex:1;min-width:0;gap:8px}
+.steps button{min-height:58px;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 8px;background:linear-gradient(180deg,#e9eaf8,#dde0f0);color:#33406e;border:1px solid #dde1f0;border-radius:13px;font-weight:800;font-size:13px;white-space:nowrap}
+.steps button:hover:not(.active){background:#e6def8;border-color:#c9b2ef}
+.steps button.active{background:linear-gradient(180deg,#a44ae8,#7d23cd);border-color:#8232d2;color:#fff;box-shadow:0 4px 0 #6c18a9}
+.step-number{display:grid;place-items:center;flex:none;width:27px;height:27px;border-radius:50%;background:#747fa5;color:#fff;font-size:15px}
+.steps button.active .step-number{background:#efccff;color:#6f23b7}
+.step-icon{font-size:24px;line-height:1}
+.file-actions{gap:6px}
+.quick-save,.new-project{min-height:40px;background:#fff;border:1px solid #dcdcf0;color:#622b9f;font-size:11px;font-weight:750}
+.quick-save:hover:not(:disabled),.new-project:hover:not(:disabled){background:var(--tl-lilac)}
+.workspace{grid-template-columns:minmax(270px,.9fr) minmax(400px,1.15fr);gap:16px}
+.panel,.classes-section{border:1px solid #e5e5f2;border-radius:19px;box-shadow:var(--tl-shadow);background:#fff}
+.panel-heading{padding:15px 18px 12px}
+.panel-heading h2{font-size:21px;color:#57209d;letter-spacing:-.4px}
+.camera-heading-icon{font-size:24px;color:#842ed0}
+.statusdot{height:9px;width:9px;background:#c4cad7}
+.statusdot.on{background:#35b44c;box-shadow:0 0 0 3px #e1f7e4}
+.viewfinder{background:#222544;border-radius:15px;margin:0 15px}
+.camera-empty{background:radial-gradient(ellipse at 50% 20%,#51428c,#231e42)}
+.camera-empty h3{font-size:19px;color:#fff}
+.camera-empty p{color:#eee6ff;font-size:13px}
+.camera-empty .primary{font-size:15px;padding-inline:24px}
+.frame{border:3px solid #ffffffa8;border-radius:15px;width:78%;max-height:78%}
+.camera-foot{padding:9px 16px;font-size:11px}
+.tip{background:#f2eaff;border:1px solid #eee1fc;margin:0 15px;color:#6b309e}
+.tip p{color:#644d8b;font-size:11px}
+.model-status{padding:8px 16px}
+.workpane{padding:19px;gap:12px}
+.workpane h2,.section-heading h2{color:#592394;font-size:23px;letter-spacing:-.6px}
+.total{background:#f1ebff;border:1px solid #e6d8ff;color:#6434a7;border-radius:16px;padding:6px 10px;font-size:12px;font-weight:750}
+.class-name-hint{color:#687493;font-size:12px}
+.class-tabs{gap:7px}
+.class-tabs button{background:#f1f3fb;border:2px solid transparent;border-bottom:4px solid var(--tab-accent,#d0d5e9);border-radius:12px;min-height:67px}
+.class-tabs button:nth-child(1){--tab-accent:#ffbf32}
+.class-tabs button:nth-child(2){--tab-accent:#4288ee}
+.class-tabs button:nth-child(3){--tab-accent:#35c53a}
+.class-tabs button:nth-child(4){--tab-accent:#f45590}
+.class-tabs button:nth-child(5){--tab-accent:#9746dc}
+.class-tabs button.selected{border-color:#9a5ad9;background:#f2eaff}
+.class-tabs b{font-size:15px;color:#453273}
+.class-tabs small{color:#4d5b7c;font-weight:650}
+.classcard{border-top:4px solid var(--color);padding-top:14px}
+.classnumber{color:#34244e;border-radius:10px;font-size:15px}
+.class-name{border:2px solid #e3def0;background:#fdfcff;color:#242d55}
+.card-top .clear{font-size:13px;background:#ffedf0;color:#ac3555;padding:8px 10px;min-height:40px}
+.thumbnail{background:#f2edff;border-radius:12px}
+.count{color:#2c325e}
+.track{background:#e9e8f2;height:9px}
+.remaining,.name-field>span{color:#6b7392}
+.capturebuttons button{font-size:14px;font-weight:800}
+.photo-review{background:#f9f7ff;border-color:#dacbea}
+.photo-review-head strong{color:#53358b}
+.action-choice{border:2px solid #d8c5f5;background:#f3ecff}
+.action-choice strong{color:#61349d}
+.action-choice select{border-color:#c5a8f1;color:#37265b}
+.collect-footer>span{font-size:11px}
+.readiness,.student-step,.light-instruction{background:#f6f2ff;border-color:#e9ddfa}
+.command-box{background:#33245c}
+.live-link-status{background:#f0eaff;color:#5d448c}
+.threshold input,.training-progress progress{accent-color:#8e35df}
+dialog{border-radius:20px;box-shadow:0 24px 65px #28115444}
+dialog::backdrop{background:#201135a8}
+dialog a{color:#7635bf}
+#toast{background:#38225e}
+@media(max-width:1200px){
+  header{height:76px;min-height:76px;padding:9px 15px}
+  .brand{font-size:21px}
+  .brand-titles small{font-size:10px}
+  .brand-wrap{gap:10px}
+  .steps button{font-size:11px;gap:5px}
+  .step-icon{font-size:18px}
+  .step-number{width:23px;height:23px;font-size:12px}
+  .file-actions button{padding-inline:8px}
+}
+@media(max-width:1000px){
+  header{flex-wrap:wrap;height:auto;min-height:72px;padding:10px 14px}
+  .brand{font-size:19px}
+  .brand-titles small{font-size:10px}
+  header .privacy{display:none}
+  .workspace{grid-template-columns:minmax(250px,.86fr) minmax(340px,1.14fr)}
+  .steps button{white-space:normal;text-align:center;min-height:56px}
+  .step-icon{display:none}
+}
+@media(max-width:800px){
+  html,body{overflow:auto;height:auto;min-height:100%}
+  body{min-height:100dvh;height:auto}
+  main{padding:10px;gap:10px}
+  .app-toolbar{height:auto;flex-wrap:wrap}
+  .steps{order:0;width:100%;flex:auto;gap:5px}
+  .steps button{font-size:11px;min-height:53px;padding:7px 4px}
+  .step-number{width:20px;height:20px;font-size:11px}
+  .file-actions{order:1;margin-left:auto}
+  .workspace{display:flex;flex-direction:column;gap:12px}
+  .camera-panel{min-height:370px}
+  .viewfinder{min-height:240px}
+  .stage{min-height:430px}
+  .workpane{min-height:430px;height:auto;padding:16px}
+  .classcard{min-height:0}
+  header{gap:8px}
+  .header-actions{gap:6px}
+}
+@media(max-width:550px){
+  .brand-mark{width:35px;height:35px;font-size:20px;border-width:2px}
+  .brand{font-size:18px}
+  .brand-titles small{white-space:normal;font-size:9px}
+  .brand-wrap{width:100%;justify-content:space-between}
+  header .project-name{max-width:120px}
+  .header-actions{width:100%;justify-content:flex-end}
+  .steps button{font-size:10px;flex-direction:column;gap:4px}
+  .steps button span:last-child{line-height:1.1}
+  .step-number{width:20px;height:20px}
+  .camera-panel{min-height:340px}
+  .viewfinder{min-height:200px}
+  .workpane h2,.section-heading h2{font-size:20px}
+}
+@media(max-height:720px) and (min-width:801px){
+  header{height:64px;min-height:64px}
+  .brand{font-size:19px}
+  .brand-titles small{font-size:9px}
+  .app-toolbar{height:54px}
+  .steps button{min-height:45px}
+  .workpane{padding:13px;gap:8px}
+  .panel-heading{padding:8px 14px}
+  .panel-heading h2{font-size:17px}
+  .tip{display:none}
+}

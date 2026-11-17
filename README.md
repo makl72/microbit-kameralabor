@@ -6,4 +6,4 @@ Die Bilder und Projekte liegen lokal im Browser. Vor dem Wechsel der Adresse Pro
 
 ## micro:bit-Befehle
 
-Die App sendet bei Erkennung `1` bis `10` über USB oder Bluetooth-UART. Zuordnung: `1` LEDs aus, `2` Herz, `3` Lächeln, `4` Links, `5` Rechts, `6` Hoch, `7` Häkchen, `8` Kreuz, `9` Quadrat, `10` Runter. Der Verbindungstest bleibt `PING` → `PONG`; ein Symbol wird mit `OK:<Zahl>` bestätigt.
+Die App sendet bei Erkennung `1` bis `10` über USB oder Bluetooth-UART. Das aktuelle [Startprogramm](Kameralabor-Startprogramm-v2.mkcd) zeigt für jede Zahl ein eigenes LED-Muster. Der Verbindungstest bleibt `PING` → `PONG`; jeder gültige Befehl wird vor der LED-Anzeige mit `OK:<Zahl>` bestätigt. Nach dem Einschalten erscheint die Giraffe, Taste A zeigt das Muster für 2.

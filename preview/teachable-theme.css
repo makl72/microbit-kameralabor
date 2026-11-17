@@ -383,3 +383,64 @@ header .project-name{min-width:170px;max-width:220px}
  .prediction-card.is-leading .prediction-value{font-size:34px}
  .prediction-track{height:13px}
 }
+
+
+/* Adaptive live cards: scale automatically with the number of trained classes */
+#predictionBars[data-class-count="1"]{grid-template-columns:1fr}
+#predictionBars[data-class-count="2"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+#predictionBars[data-class-count="3"]{grid-template-columns:repeat(3,minmax(0,1fr))}
+#predictionBars[data-class-count="4"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+#predictionBars[data-class-count="5"]{grid-template-columns:repeat(3,minmax(0,1fr))}
+
+#predictionBars[data-class-count="1"] .prediction-card,
+#predictionBars[data-class-count="2"] .prediction-card{padding:24px 22px 20px}
+#predictionBars[data-class-count="1"] .prediction-dot,
+#predictionBars[data-class-count="2"] .prediction-dot{width:48px;height:48px;font-size:21px}
+#predictionBars[data-class-count="1"] .prediction-identity strong,
+#predictionBars[data-class-count="2"] .prediction-identity strong{font-size:26px}
+#predictionBars[data-class-count="1"] .prediction-value,
+#predictionBars[data-class-count="2"] .prediction-value{font-size:46px}
+#predictionBars[data-class-count="1"] .prediction-card.is-leading .prediction-value,
+#predictionBars[data-class-count="2"] .prediction-card.is-leading .prediction-value{font-size:58px}
+#predictionBars[data-class-count="1"] .prediction-track,
+#predictionBars[data-class-count="2"] .prediction-track{height:20px;margin-top:17px}
+#predictionBars[data-class-count="1"] .prediction-caption,
+#predictionBars[data-class-count="2"] .prediction-caption{font-size:13px}
+
+#predictionBars[data-class-count="3"] .prediction-card{padding:18px 16px 15px}
+#predictionBars[data-class-count="3"] .prediction-identity strong{font-size:19px}
+#predictionBars[data-class-count="3"] .prediction-value{font-size:31px}
+#predictionBars[data-class-count="3"] .prediction-card.is-leading .prediction-value{font-size:39px}
+#predictionBars[data-class-count="3"] .prediction-track{height:14px}
+
+#predictionBars[data-class-count="4"] .prediction-card,
+#predictionBars[data-class-count="5"] .prediction-card{padding:14px 14px 11px}
+#predictionBars[data-class-count="4"] .prediction-dot,
+#predictionBars[data-class-count="5"] .prediction-dot{width:32px;height:32px;font-size:14px}
+#predictionBars[data-class-count="4"] .prediction-identity strong,
+#predictionBars[data-class-count="5"] .prediction-identity strong{font-size:16px}
+#predictionBars[data-class-count="4"] .prediction-value,
+#predictionBars[data-class-count="5"] .prediction-value{font-size:25px}
+#predictionBars[data-class-count="4"] .prediction-card.is-leading .prediction-value,
+#predictionBars[data-class-count="5"] .prediction-card.is-leading .prediction-value{font-size:31px}
+#predictionBars[data-class-count="4"] .prediction-track,
+#predictionBars[data-class-count="5"] .prediction-track{height:11px;margin:9px 0 4px}
+#predictionBars[data-class-count="4"] .prediction-caption,
+#predictionBars[data-class-count="5"] .prediction-caption{font-size:9px}
+
+@media(max-width:1100px){
+ #predictionBars[data-class-count="3"],
+ #predictionBars[data-class-count="5"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+ #predictionBars[data-class-count="2"],
+ #predictionBars[data-class-count="3"],
+ #predictionBars[data-class-count="4"],
+ #predictionBars[data-class-count="5"]{grid-template-columns:1fr}
+ #predictionBars .prediction-card{padding:14px 15px}
+ #predictionBars .prediction-dot{width:34px;height:34px;font-size:15px}
+ #predictionBars .prediction-identity strong{font-size:18px}
+ #predictionBars .prediction-value,
+ #predictionBars .prediction-card.is-leading .prediction-value{font-size:30px}
+ #predictionBars .prediction-track{height:12px}
+}

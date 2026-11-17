@@ -27,7 +27,7 @@ function renderCards(){
   const cmd=card.querySelector('.mapping input');cmd.value=c.command;cmd.addEventListener('change',()=>{const s=cmd.value.trim().toUpperCase();if(!CameraLabCore.command(s)){cmd.value=c.command;toast('Befehle: 1–18 Zeichen, nur A–Z, 0–9 und Unterstrich.');return}stopPrediction();c.command=s;cmd.value=s;scheduleSave();toast('Befehl geändert. Erkennung bei Bedarf neu starten.')});
   card.querySelector('.clear').onclick=()=>deleteImages(i,c.samples.map((_,j)=>j));
   card.querySelector('.gallery-open').onclick=()=>openGallery(i);
-  const symbolSelect=card.querySelector('.class-symbol');for(const [value,label] of Object.entries(symbolLabels)){const option=document.createElement('option');option.value=value;option.textContent=label;symbolSelect.append(option)}
+  const symbolSelect=card.querySelector('.class-symbol');for(const [value,number] of Object.entries(actionNumbers)){const option=document.createElement('option');option.value=value;option.textContent=number;option.setAttribute('aria-label',number+' – '+symbolLabels[value]);symbolSelect.append(option)}
   symbolSelect.value=getClassSymbol(i);renderLED(card.querySelector('.class-action-preview'),getClassSymbol(i));
   symbolSelect.onchange=()=>setClassSymbol(i,symbolSelect.value);
   const rec=card.querySelector('.record');rec.addEventListener('pointerdown',e=>{e.preventDefault();rec.setPointerCapture(e.pointerId);startCapture(i,false)});
@@ -199,7 +199,7 @@ function updateConnectionBadge(state){
 }
 function setCommand(command,reason,slot=-1){
  const symbol=slot>=0?getClassSymbol(slot):'off';const changed=currentSymbol!==symbol;const previousClass=currentClass;currentCommand=command;currentClass=slot;currentSymbol=symbol;
- $('currentCommand').textContent=slot>=0?classes[slot].name:'—';$('liveAction').textContent=slot>=0?(symbolLabels[symbol]||symbol):'—';
+ $('currentCommand').textContent=slot>=0?classes[slot].name:'—';$('liveAction').textContent=slot>=0?(actionNumbers[symbol]||'—'):'—';
  if(slot<0)$('liveDelivery').textContent='';
  else if(!bitReady||!bitLink?.connected)$('liveDelivery').textContent='Vorschau · micro:bit nicht verbunden';
  else if(!changed&&previousClass!==slot)$('liveDelivery').textContent='✓ bereits angezeigt';
@@ -209,7 +209,7 @@ function setCommand(command,reason,slot=-1){
 async function sendCurrent(){
  if(!bitLink?.connected||!bitReady)return;if(sending){pendingSymbol=true;return}sending=true;
  const link=bitLink;
- try{do{pendingSymbol=false;const value=currentSymbol.toUpperCase();if(currentClass>=0)$('liveDelivery').textContent='Wird gesendet …';await link.send(value);if(link===bitLink){$('linkLiveStatus').textContent=value==='OFF'?'micro:bit: Anzeige gelöscht.':'micro:bit: '+(symbolLabels[value.toLowerCase()]||value)+' bestätigt.';if(value===currentSymbol.toUpperCase()&&currentClass>=0)$('liveDelivery').textContent='✓ micro:bit bestätigt'}}while(pendingSymbol&&link===bitLink&&link.connected)}
+ try{do{pendingSymbol=false;const value=currentSymbol.toUpperCase();if(currentClass>=0)$('liveDelivery').textContent='Wird gesendet …';await link.send(value);if(link===bitLink){$('linkLiveStatus').textContent='micro:bit: Zahl '+actionNumbers[value.toLowerCase()]+' bestätigt.';if(value===currentSymbol.toUpperCase()&&currentClass>=0)$('liveDelivery').textContent='✓ micro:bit bestätigt'}}while(pendingSymbol&&link===bitLink&&link.connected)}
  catch(e){if(link===bitLink){$('linkLiveStatus').textContent='micro:bit: Keine Antwort. Verbindung im micro:bit-Bereich prüfen.';if(currentClass>=0)$('liveDelivery').textContent='Keine Antwort';await link.disconnect();bitReady=false;updateBitUI()}}
  finally{sending=false}
 }
@@ -328,17 +328,18 @@ function updateBitUI(){
 }
 function showBitView(view){bitView=view;document.querySelector('.bit-connect-view').hidden=view!=='connect';$('bitActionsView').hidden=view!=='actions';renderBitMappings();updateBitUI()}
 const symbolLabels={heart:'♥ Herz',smile:'☺ Lächeln',left:'← Pfeil links',right:'→ Pfeil rechts',up:'↑ Pfeil oben',down:'↓ Pfeil unten',check:'✓ Häkchen',cross:'× Kreuz',square:'□ Quadrat',off:'○ LEDs aus'};
+const actionNumbers=Object.fromEntries(Object.entries(MicrobitTransport.COMMAND_CODES).map(([name,number])=>[name.toLowerCase(),number]));
 function setClassSymbol(slot,symbol){
- const c=classes[slot];if(!c||!Object.hasOwn(symbolLabels,symbol))return;
+ const c=classes[slot];if(!c||!Object.hasOwn(actionNumbers,symbol))return;
  c.symbol=symbol;const card=$('class'+slot);
  if(card){card.querySelector('.class-symbol').value=symbol;renderLED(card.querySelector('.class-action-preview'),symbol)}
  renderBitMappings();scheduleSave();
- if(currentClass===slot){currentSymbol=symbol;$('liveAction').textContent=symbolLabels[symbol];sendCurrent()}
+ if(currentClass===slot){currentSymbol=symbol;$('liveAction').textContent=actionNumbers[symbol];sendCurrent()}
 }
 function renderBitMappings(){
  const container=$('bitMappings');container.replaceChildren();const occupied=classes.map((c,i)=>({c,i})).filter(({c})=>c.samples.length);
  if(!occupied.length){const p=document.createElement('p');p.className='mapping-empty';p.textContent='Wähle die micro:bit-Aktion schon beim Sammeln direkt bei deiner Klasse. Nach der ersten Aufnahme erscheint sie auch hier.';container.append(p);return}
- occupied.forEach(({c,i})=>{const row=document.createElement('div');row.className='symbol-row';const matrix=document.createElement('div');matrix.className='led-matrix symbol-mini';matrix.setAttribute('aria-hidden','true');renderLED(matrix,getClassSymbol(i));const label=document.createElement('label');const name=document.createElement('span');name.textContent=c.name;const select=document.createElement('select');select.setAttribute('aria-label','Symbol für '+c.name);for(const [value,text] of Object.entries(symbolLabels)){const option=document.createElement('option');option.value=value;option.textContent=text;select.append(option)}select.value=getClassSymbol(i);select.onchange=()=>setClassSymbol(i,select.value);label.append(name,select);row.append(matrix,label);container.append(row)});
+ occupied.forEach(({c,i})=>{const row=document.createElement('div');row.className='symbol-row';const matrix=document.createElement('div');matrix.className='led-matrix symbol-mini';matrix.setAttribute('aria-hidden','true');renderLED(matrix,getClassSymbol(i));const label=document.createElement('label');const name=document.createElement('span');name.textContent=c.name;const select=document.createElement('select');select.setAttribute('aria-label','Zahl für '+c.name);for(const [value,number] of Object.entries(actionNumbers)){const option=document.createElement('option');option.value=value;option.textContent=number;option.setAttribute('aria-label',number+' – '+symbolLabels[value]);select.append(option)}select.value=getClassSymbol(i);select.onchange=()=>setClassSymbol(i,select.value);label.append(name,select);row.append(matrix,label);container.append(row)});
 }
 function openTeacher(){stopPrediction();$('setupDialog').showModal()}
 $('teacherBtn').onclick=openTeacher;$('teacherQuick').onclick=openTeacher;

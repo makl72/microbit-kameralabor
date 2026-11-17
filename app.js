@@ -105,7 +105,7 @@ function renderBars(probs){
   row.append(top,track,caption);rows.append(row);
  })
 }
-function invalidate(){savedModel=null;oneClass=null;activeIndices=[];showTrainMessage('');revision++;stopPrediction();trained=false;if(head){head.dispose();head=null}$('resultBadge').textContent='Neu trainieren';$('resultTitle').textContent='Was sieht deine KI?';renderBars();updateControls()}
+function invalidate(){savedModel=null;oneClass=null;activeIndices=[];showTrainMessage('');revision++;stopPrediction();trained=false;if(head){head.dispose();head=null}$('resultBadge').textContent='Neu trainieren';$('resultBadge').classList.remove('recognized');$('resultTitle').textContent='Was sieht deine KI?';renderBars();updateControls()}
 async function loadBase(){
  if(base)return base;
  if(!basePromise)basePromise=(async()=>{try{
@@ -205,7 +205,7 @@ async function predictLoop(){
  }
 }
 function startPrediction(){if(!trained||!stream||predicting)return;predicting=true;predictSerial++;gate.reset();lastInference=performance.now();updateControls();predictLoop()}
-function stopPrediction(){bitTesting=false;predicting=false;predictSerial++;gate.reset();setCommand('STOPP','Erkennung ist ausgeschaltet');updateControls()}
+function stopPrediction(){bitTesting=false;predicting=false;predictSerial++;gate.reset();setCommand('STOPP','Erkennung ist ausgeschaltet');$('resultBadge').classList.remove('recognized');updateControls()}
 function log(command){lastLogged=command}
 function getClassSymbol(slot){return classes[slot]?.symbol||['heart','smile','left','right','check'][slot]||'off'}
 function updateConnectionBadge(state){

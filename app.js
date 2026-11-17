@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const {TARGET,MIN,MAX}=CameraLabCore;
-const colors=['#d6f06b','#c8bcf8','#ffc799','#a7d7ef','#f2bdc9'];
+const colors=['#ffc43d','#4285e9','#42c83d','#f2558c','#9a4de0'];
 let classes=[['Offene Hand','STOPP'],['Faust','VORWAERTS'],['Zeichen links','LINKS'],['Zeichen rechts','RECHTS'],['Hintergrund / keine Geste','STOPP']].map(([name,command])=>({name,command,samples:[],images:[],thumb:''}));
 let stream=null,front=false,base=null,basePromise=null,head=null,trained=false,training=false,predicting=false,recording=null,extracting=false,cameraStarting=false,revision=0,trainMessage='',trainError=false;
 let currentCommand='STOPP',lastInference=0,lastLogged='',toastTimer;
@@ -86,9 +86,26 @@ function updateControls(){
 }
 
 function renderBars(probs){
- const rows=$('predictionBars');rows.replaceChildren();classes.forEach((c,i)=>{if(!c.samples.length)return;const row=document.createElement('div');row.className='predrow';const label=document.createElement('div');label.className='predlabel';const name=document.createElement('span');name.textContent=c.name;const value=document.createElement('strong');value.textContent=probs?Math.round(probs[i]*100)+' %':'—';label.append(name,value);const track=document.createElement('div');track.className='track';const bar=document.createElement('i');bar.style.background=colors[i];bar.style.width=probs?probs[i]*100+'%':'0%';track.append(bar);row.append(label,track);rows.append(row)})
+ const rows=$('predictionBars');rows.replaceChildren();
+ const active=classes.map((c,i)=>({c,i})).filter(({c})=>c.samples.length);
+ rows.dataset.classCount=String(active.length);
+ const best=probs&&active.length?active.reduce((a,b)=>(probs[b.i]||0)>(probs[a.i]||0)?b:a,active[0]).i:-1;
+ active.forEach(({c,i})=>{
+  const score=probs?Math.max(0,Math.min(1,probs[i]||0)):0;
+  const row=document.createElement('div');row.className='predrow prediction-card'+(i===best?' is-leading':'');row.style.setProperty('--class-color',colors[i]);
+  const top=document.createElement('div');top.className='prediction-top';
+  const identity=document.createElement('div');identity.className='prediction-identity';
+  const dot=document.createElement('span');dot.className='prediction-dot';dot.textContent=i+1;
+  const name=document.createElement('strong');name.textContent=c.name;
+  identity.append(dot,name);
+  const value=document.createElement('b');value.className='prediction-value';value.textContent=probs?Math.round(score*100)+' %':'—';
+  top.append(identity,value);
+  const track=document.createElement('div');track.className='track prediction-track';const bar=document.createElement('i');bar.style.background=colors[i];bar.style.width=probs?score*100+'%':'0%';track.append(bar);
+  const caption=document.createElement('small');caption.className='prediction-caption';caption.textContent=i===best&&probs?'höchste Übereinstimmung':'';
+  row.append(top,track,caption);rows.append(row);
+ })
 }
-function invalidate(){savedModel=null;oneClass=null;activeIndices=[];showTrainMessage('');revision++;stopPrediction();trained=false;if(head){head.dispose();head=null}$('resultBadge').textContent='Neu trainieren';$('resultTitle').textContent='Was sieht deine KI?';renderBars();updateControls()}
+function invalidate(){savedModel=null;oneClass=null;activeIndices=[];showTrainMessage('');revision++;stopPrediction();trained=false;if(head){head.dispose();head=null}$('resultBadge').textContent='Neu trainieren';$('resultBadge').classList.remove('recognized');$('resultTitle').textContent='Was sieht deine KI?';renderBars();updateControls()}
 async function loadBase(){
  if(base)return base;
  if(!basePromise)basePromise=(async()=>{try{
@@ -181,14 +198,14 @@ async function predictLoop(){
    let probs;if(oneClass){probs=CameraLabCore.mapProbabilities([CameraLabCore.singleScore(row,oneClass)],activeIndices)}else{const output=tf.tidy(()=>head.predict(tf.tensor2d([row])));try{probs=CameraLabCore.mapProbabilities(Array.from(await output.data()),activeIndices)}finally{output.dispose()}}
    if(!predicting||myRevision!==revision||mySerial!==predictSerial)break;lastInference=performance.now();renderBars(probs);
    const result=gate.update(probs,confidence,lastInference);const best=probs.indexOf(Math.max(...probs));
-   $('resultTitle').textContent=oneClass&&result.index<0?'Keine sichere Übereinstimmung':classes[best].name;$('resultBadge').textContent=result.index<0?'Noch unsicher':'Stabil erkannt';
+   const high=Math.max(...probs);$('resultTitle').textContent=result.index<0?(oneClass?'Noch keine sichere Übereinstimmung':'Ich prüfe …'):'Ich sehe: '+classes[best].name;$('resultBadge').textContent=Math.round(high*100)+' %';$('resultBadge').classList.toggle('recognized',result.index>=0);
    setCommand(result.index<0?'STOPP':classes[result.index].command,result.reason,result.index);
   }catch(e){stopPrediction();toast('Erkennung angehalten: '+e.message);break}
   await new Promise(resolve=>setTimeout(resolve,140));
  }
 }
 function startPrediction(){if(!trained||!stream||predicting)return;predicting=true;predictSerial++;gate.reset();lastInference=performance.now();updateControls();predictLoop()}
-function stopPrediction(){bitTesting=false;predicting=false;predictSerial++;gate.reset();setCommand('STOPP','Erkennung ist ausgeschaltet');updateControls()}
+function stopPrediction(){bitTesting=false;predicting=false;predictSerial++;gate.reset();setCommand('STOPP','Erkennung ist ausgeschaltet');$('resultBadge').classList.remove('recognized');updateControls()}
 function log(command){lastLogged=command}
 function getClassSymbol(slot){return classes[slot]?.symbol||['heart','smile','left','right','check'][slot]||'off'}
 function updateConnectionBadge(state){
@@ -235,12 +252,12 @@ function projectFilename(){return CameraLabCore.projectFilename(projectName)}
 async function exportProject(){
  const project={format:'microbit-kameralabor-v1',base:'mobilenet-v1-050',name:projectName,classes,created:new Date().toISOString()};const name=projectFilename();
  if(window.showSaveFilePicker){
-  let handle;try{handle=await window.showSaveFilePicker({suggestedName:name,types:[{description:'Kameralabor-Projekt',accept:{'application/json':['.json']}}]})}catch(e){if(e.name==='AbortError')return}
+  let handle;try{handle=await window.showSaveFilePicker({suggestedName:name,types:[{description:'Teachable-Labor-Projekt',accept:{'application/json':['.json']}}]})}catch(e){if(e.name==='AbortError')return}
   if(handle){try{const chosenName=CameraLabCore.projectNameForFile(handle.name,projectName);project.name=chosenName;const writable=await handle.createWritable();await writable.write(new Blob([JSON.stringify(project)],{type:'application/json'}));await writable.close();if(chosenName!==projectName){projectName=chosenName;$('projectName').value=projectName;await saveNow(true);$('projectFileName').textContent=projectFilename()}toast('Projektdatei '+handle.name+' im gewählten Ordner gespeichert.');return}catch(e){toast('Projektdatei konnte nicht gespeichert werden: '+e.message);return}}
  }
  const blob=new Blob([JSON.stringify(project)],{type:'application/json'});
  const file=new File([blob],name,{type:'application/json'});
- if(navigator.share&&navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file],title:'Kameralabor-Projekt sichern'});toast('Projektdatei über die Teilen-Auswahl übergeben.');return}catch(e){if(e.name==='AbortError')return}}
+ if(navigator.share&&navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file],title:'Teachable-Labor-Projekt sichern'});toast('Projektdatei über die Teilen-Auswahl übergeben.');return}catch(e){if(e.name==='AbortError')return}}
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500);toast('Projektdatei heruntergeladen. Suche in „Downloads“ nach '+name+'.');
 }
 async function importProject(file){
@@ -332,8 +349,8 @@ function updateBitUI(){
  const connected=!!bitLink?.connected;$('connectBtn').disabled=bitConnecting||connected;$('connectBtn').textContent=bitConnecting?'Verbinde …':bitMode==='usb'?'micro:bit über USB verbinden':bitMode==='native'?'micro:bit in iPad-App verbinden':'micro:bit über Bluetooth verbinden';$('disconnectBtn').hidden=!connected;$('testLedBtn').disabled=!connected||!bitReady||bitTesting;$('testLedBtn').textContent=bitTesting?'Warte auf Antwort …':'2 senden und Antwort prüfen';$('bitGoLive').disabled=!trained||training;$('bitGoLive2').disabled=!trained||training;
  updateConnectionBadge();
  $('usbTab').hidden=bitMode==='native';$('bleTab').hidden=bitMode==='native';$('usbTab').classList.toggle('active',bitMode==='usb');$('bleTab').classList.toggle('active',bitMode==='ble');$('usbTab').setAttribute('aria-pressed',String(bitMode==='usb'));$('bleTab').setAttribute('aria-pressed',String(bitMode==='ble'));
- $('modeHint').textContent=bitMode==='native'?'iPad-App: Kamera-KI und Bluetooth laufen zusammen. Starte zuerst das Kameralabor-Startprogramm auf dem micro:bit.':bitMode==='usb'?'Windows: USB-Datenkabel, Chrome oder Edge. Wähle im Fenster den seriellen micro:bit-Anschluss.':'iPad: Bluefy öffnen. Vor dem Verbinden Taste A drücken: zwei LEDs = richtiges Programm. Balken = Kopplungsmodus; einmal Reset drücken.';
- if(bitMode==='native'){$('bitStatus').title='Die iPad-App stellt die Bluetooth-Verbindung her.';document.querySelector('.bit-hint').textContent='Die iPad-App nutzt die Kamera für Training und Live-Erkennung und sendet Befehle direkt über Bluetooth.';document.querySelector('.teacher-steps>div:nth-child(3) p').textContent='iPad-App: micro:bit mit Strom versorgen, Bluetooth einschalten und im Kameralabor auf Verbinden tippen.'}
+ $('modeHint').textContent=bitMode==='native'?'iPad-App: Kamera-KI und Bluetooth laufen zusammen. Starte zuerst das Teachable-Labor-Startprogramm auf dem micro:bit.':bitMode==='usb'?'Windows: USB-Datenkabel, Chrome oder Edge. Wähle im Fenster den seriellen micro:bit-Anschluss.':'iPad: Bluefy öffnen. Vor dem Verbinden Taste A drücken: zwei LEDs = richtiges Programm. Balken = Kopplungsmodus; einmal Reset drücken.';
+ if(bitMode==='native'){$('bitStatus').title='Die iPad-App stellt die Bluetooth-Verbindung her.';document.querySelector('.bit-hint').textContent='Die iPad-App nutzt die Kamera für Training und Live-Erkennung und sendet Befehle direkt über Bluetooth.';document.querySelector('.teacher-steps>div:nth-child(3) p').textContent='iPad-App: micro:bit mit Strom versorgen, Bluetooth einschalten und im Teachable Labor auf Verbinden tippen.'}
  $('connectInstruction').textContent=bitMode==='native'?'Bluetooth einschalten und den micro:bit im Auswahlfenster der App wählen.':bitMode==='usb'?'USB-Datenkabel einstecken und den seriellen micro:bit-Anschluss auswählen.':'Bluetooth einschalten, diese Seite in Bluefy öffnen und den BBC micro:bit auswählen. Nicht A+B+Reset oder dreimal Reset drücken.';
 }
 function showBitView(view){bitView=view;document.querySelector('.bit-connect-view').hidden=view!=='connect';$('bitActionsView').hidden=view!=='actions';renderBitMappings();updateBitUI()}

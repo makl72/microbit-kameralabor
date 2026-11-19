@@ -125,10 +125,10 @@ main{padding:13px 18px 18px;gap:14px}
 
 .class-name-hint{max-width:760px;margin:0;color:#687592;font-size:13px;line-height:1.55}
 .class-toolbar{display:flex;gap:10px;align-items:flex-start;min-width:0}
-.class-tabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:thin;padding:4px 4px 8px;flex:1;min-width:0}
+.class-tabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:thin;padding:8px 9px 11px;scroll-padding-inline:9px;flex:1;min-width:0}
 .class-tabs button{position:relative;flex:0 0 120px;align-items:flex-start;text-align:left;padding:10px 12px 9px;min-height:76px;border:0;border-radius:13px;background:var(--tab-accent);color:var(--tab-text,#fff);box-shadow:inset 0 -4px 0 rgba(0,0,0,.12),0 3px 9px rgba(43,45,91,.08);overflow:hidden}
 .class-tabs button::after{content:"";position:absolute;right:-16px;top:50%;width:32px;height:32px;background:#fff;transform:translateY(-50%) rotate(45deg);opacity:.12}
-.class-tabs button.selected{box-shadow:inset 0 -4px 0 rgba(0,0,0,.13),0 0 0 3px #fff,0 0 0 6px #6e30b2,0 7px 16px rgba(72,37,124,.18)}
+.class-tabs button.selected{box-shadow:inset 0 -4px 0 rgba(0,0,0,.13),0 0 0 2px #fff,0 0 0 5px #6e30b2,0 5px 12px rgba(72,37,124,.18)}
 .class-tabs b{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:50%;background:#ffffffdf;color:#39275c;font-size:14px;margin-bottom:4px}
 .class-tabs small{display:block;width:100%;font-size:12px;line-height:1.15;color:inherit;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .class-tabs span{font-size:11px;color:inherit;opacity:.9;margin-top:2px}
@@ -159,11 +159,11 @@ main{padding:13px 18px 18px;gap:14px}
 .capturebuttons button{min-height:48px;font-size:15px}
 .record{background:var(--color);color:var(--class-text,#fff);border:0;box-shadow:inset 0 -3px 0 #0002}
 .series{background:#f0ecfa;color:#5d3c85;border:1px solid #ddd3ee}
-.photo-review{padding:10px;border:1px solid #e7e2f0;background:#fbfaff;border-radius:13px}
-.photo-review-head strong{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6f6485}
-.photo-review-head button{background:transparent;border:0;color:#6d35a2;text-decoration:underline;font-size:12px}
-.photo-strip{min-height:48px}
-.photo-tile{width:48px;height:48px}
+.photo-review{padding:11px 12px 12px;border:1px solid #ddd3ec;background:#fbfaff;border-radius:13px;overflow:visible}
+.photo-review-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.photo-review-head>div{display:flex;flex-direction:column;gap:2px}.photo-review-head strong{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#5b4778}.photo-review-head span{font-size:11px;color:#7c7390}
+.photo-review-head button{background:#eee5ff;border:1px solid #d5c2f0;color:#5d2697;text-decoration:none;font-size:12px;font-weight:850;min-height:38px;padding:7px 11px;white-space:nowrap}
+.photo-strip{min-height:60px;gap:9px;padding:4px 3px 3px;overflow-x:auto;overflow-y:visible}
+.photo-tile{width:56px;height:56px;overflow:visible;border-radius:9px;background:#ebe8f5;box-shadow:0 0 0 1px #ddd8e9}
 .collect-footer{border-top:1px solid #ece8f2;padding-top:10px}
 .collect-footer>span{font-size:12px;color:#737d95}
 .collect-footer .secondary{background:#7c2dcc;color:#fff;border:0;box-shadow:0 3px 0 #5e1fa0;min-height:42px}
@@ -336,4 +336,29 @@ dialog a{color:#7535bd}
   .recognition-hero{min-height:150px;padding:15px 18px}
   .recognition-hero>strong{font-size:34px}
   .recognition-hero>b{font-size:44px}
+}
+
+.photo-tile img{border-radius:9px}
+.photo-remove{
+  right:-6px!important;
+  top:-6px!important;
+  width:27px!important;
+  height:27px!important;
+  min-height:27px!important;
+  padding:0!important;
+  border-radius:50%!important;
+  background:#d83961!important;
+  color:#fff!important;
+  border:2px solid #fff!important;
+  box-shadow:0 2px 5px #5a244044!important;
+  font-size:18px!important;
+  font-weight:900!important;
+  line-height:22px!important;
+  z-index:2;
+}
+.photo-remove:hover:not(:disabled){background:#b7254b!important}
+@media(max-width:560px){
+  .photo-review-head{align-items:flex-start}
+  .photo-review-head button{min-height:36px;font-size:11px}
+  .photo-tile{width:52px;height:52px}
 }

@@ -152,9 +152,12 @@ main{padding:13px 18px 18px;gap:14px}
 .diversity{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px;padding:7px 9px;border-radius:9px;background:#f3f4f8;font-size:11px}
 .diversity span{color:#737b91}
 .diversity strong{font-size:12px}
+.diversity[data-level="very-low"]{background:#ffe7e7;color:#9d3030}
 .diversity[data-level="low"]{background:#fff0e8;color:#985331}
-.diversity[data-level="medium"]{background:#fff7dd;color:#80621b}
-.diversity[data-level="good"],.diversity[data-level="great"]{background:#e8f7ec;color:#2d7442}
+.diversity[data-level="fair"]{background:#fff6d9;color:#80621b}
+.diversity[data-level="good"]{background:#eef7dc;color:#55712a}
+.diversity[data-level="very-good"]{background:#e5f6e9;color:#2f7545}
+.diversity[data-level="great"]{background:#def5ee;color:#206b5a}
 .capturebuttons{grid-column:2;display:grid;grid-template-columns:1.4fr .8fr;gap:8px}
 .capturebuttons button{min-height:48px;font-size:15px}
 .record{background:var(--color);color:var(--class-text,#fff);border:0;box-shadow:inset 0 -3px 0 #0002}

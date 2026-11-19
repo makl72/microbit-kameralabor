@@ -52,10 +52,12 @@
     }
     const distance=pairs?sum/pairs:0;
     const score=Math.max(0,Math.min(1,distance/.12));
-    if(score<.18)return {score:score,label:'sehr ähnlich',level:'low'};
-    if(score<.42)return {score:score,label:'etwas ähnlich',level:'medium'};
-    if(score<.7)return {score:score,label:'gut gemischt',level:'good'};
-    return {score:score,label:'sehr vielfältig',level:'great'};
+    if(score<.12)return {score:score,label:'1/6 · sehr ähnlich',level:'very-low'};
+    if(score<.24)return {score:score,label:'2/6 · wenig vielfältig',level:'low'};
+    if(score<.38)return {score:score,label:'3/6 · etwas vielfältig',level:'fair'};
+    if(score<.55)return {score:score,label:'4/6 · gut gemischt',level:'good'};
+    if(score<.75)return {score:score,label:'5/6 · sehr gut gemischt',level:'very-good'};
+    return {score:score,label:'6/6 · sehr vielfältig',level:'great'};
   }
 
   function singleProfile(samples){

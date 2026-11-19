@@ -32,17 +32,11 @@ function renderCards(){
  selectedClass=Math.max(0,Math.min(selectedClass,classes.length-1));
  classes.forEach((c,i)=>{
   const card=document.createElement('article');card.className='classcard';card.style.setProperty('--color',classColor(i));card.style.setProperty('--class-text',classTextColor(i));card.id='class'+i;
-  card.innerHTML='<div class="card-top"><span class="classnumber">'+(i+1)+'</span><input class="class-name" maxlength="60" aria-label="Name Klasse '+(i+1)+'"><button class="plain clear" aria-label="Bilder von Klasse '+(i+1)+' löschen">Bilder löschen</button></div><div class="card-body"><div class="thumbnail"></div><div class="sampleinfo"><div class="count"><span></span><small>Startziel</small></div><div class="track"><i></i></div><div class="remaining"></div><div class="diversity" data-level="empty"><span>Bildvielfalt</span><strong>noch zu wenige Bilder</strong></div></div><div class="capturebuttons"><button class="record" disabled>● Aufnehmen</button><button class="series" disabled>Serie</button></div></div><div class="photo-review"><div class="photo-review-head"><div><strong>Lernbilder</strong><span>Einzelne Bilder mit × löschen</span></div><button class="gallery-open secondary">Bilder ansehen</button></div><div class="photo-strip" aria-label="Zuletzt aufgenommene Bilder"></div></div><div class="class-number-choice"><div class="led-matrix class-number-preview" aria-hidden="true"></div><label><span>micro:bit-Zahl</span><strong>Bei Erkennung dieser Klasse senden:</strong><select class="class-number-select" aria-label="micro:bit-Zahl für Klasse '+(i+1)+'"></select></label></div>';
+  card.innerHTML='<div class="card-top"><span class="classnumber">'+(i+1)+'</span><input class="class-name" maxlength="60" aria-label="Name Klasse '+(i+1)+'"><button class="plain clear" aria-label="Bilder von Klasse '+(i+1)+' löschen">Bilder löschen</button></div><div class="card-body"><div class="thumbnail"></div><div class="sampleinfo"><div class="count"><span></span><small>Startziel</small></div><div class="track"><i></i></div><div class="remaining"></div><div class="diversity" data-level="empty"><span>Bildvielfalt</span><strong>noch zu wenige Bilder</strong></div></div><div class="capturebuttons"><button class="record" disabled>● Aufnehmen</button><button class="series" disabled>Serie</button></div></div><div class="photo-review"><div class="photo-review-head"><div><strong>Lernbilder</strong><span>Einzelne Bilder mit × löschen</span></div><button class="gallery-open secondary">Bilder ansehen</button></div><div class="photo-strip" aria-label="Zuletzt aufgenommene Bilder"></div></div>';
   const nameWrap=document.createElement('label');nameWrap.className='name-field';const nameCaption=document.createElement('span');nameCaption.textContent='Name der Klasse';const nameInput=card.querySelector('.class-name');nameInput.before(nameWrap);nameWrap.append(nameCaption,nameInput);nameInput.placeholder='Eigenen Namen eingeben';nameInput.autocomplete='off';
   const name=card.querySelector('.class-name');name.value=c.name;name.addEventListener('input',()=>{c.name=name.value;renderBars();updateControls();updateClassTabs();scheduleSave()});name.addEventListener('blur',()=>{c.name=name.value.trim();name.value=c.name;renderBars();updateControls();updateClassTabs();scheduleSave()});
   card.querySelector('.clear').onclick=()=>deleteImages(i,c.samples.map((_,j)=>j));
   card.querySelector('.gallery-open').onclick=()=>openGallery(i);
-  const numberSelect=card.querySelector('.class-number-select');
-  const noneOption=document.createElement('option');noneOption.value='';noneOption.textContent='Keine Aktion';numberSelect.append(noneOption);
-  Object.entries(actionNumbers).sort((a,b)=>a[1]-b[1]).forEach(([value,number])=>{const option=document.createElement('option');option.value=value;option.textContent='Zahl '+number;numberSelect.append(option)});
-  numberSelect.value=getClassSymbol(i)||'';
-  renderNumberLED(card.querySelector('.class-number-preview'),getClassSymbol(i));
-  numberSelect.onchange=()=>setClassSymbol(i,numberSelect.value);
   const rec=card.querySelector('.record');rec.addEventListener('pointerdown',e=>{e.preventDefault();rec.setPointerCapture(e.pointerId);startCapture(i,false)});
   ['pointerup','pointercancel','lostpointercapture'].forEach(event=>rec.addEventListener(event,()=>{if(recording?.i===i&&!recording.series)stopCapture()}));
   rec.addEventListener('keydown',e=>{if((e.code==='Space'||e.code==='Enter')&&!e.repeat){e.preventDefault();startCapture(i,false)}});rec.addEventListener('keyup',e=>{if(e.code==='Space'||e.code==='Enter')stopCapture()});
@@ -66,7 +60,6 @@ function updateCards(){
   card.querySelector('.gallery-open').disabled=restoring||training||!!recording||extracting||!n;card.querySelector('.gallery-open').textContent=n?'Bilder ansehen · '+n:'Bilder ansehen';
   renderPhotoStrip(i,card);
   card.querySelector('.class-name').disabled=training||restoring;
-  card.querySelector('.class-number-select').disabled=restoring||training;
  });
  $('totalCount').textContent=imageCount(total);
  const selected=classes[selectedClass];
@@ -115,7 +108,8 @@ function updateControls(){
 }
 function updateStepProgress(){
  const ready=CameraLabCore.trainingReadiness(classes).ready;
- [['stepCollect',ready],['stepTrain',trained],['stepLive',hasStableRecognition],['stepConnect',bitReady]].forEach(([id,done])=>$(id)?.classList.toggle('done',!!done));
+ const mapped=classes.some((c,i)=>c.samples.length&&getClassSymbol(i));
+ [['stepCollect',ready],['stepTrain',trained],['stepLive',hasStableRecognition],['stepMap',mapped],['stepConnect',bitReady]].forEach(([id,done])=>$(id)?.classList.toggle('done',!!done));
 }
 
 function renderBars(probs){
@@ -323,8 +317,8 @@ async function importProject(file){
 }
 $('cameraBtn').onclick=startCamera;$('switchCam').onclick=()=>{front=!front;startCamera()};$('restartCam').onclick=startCamera;$('stopCam').onclick=stopCamera;
 $('stepCollect').onclick=()=>showPane('collect');$('goTrain').onclick=()=>showPane('train');$('goLive').onclick=()=>showPane('live');$('stepLive').onclick=()=>showPane('live');
-$('stepTrain').onclick=()=>showPane('train');$('stepConnect').onclick=()=>showPane('connect');
-$('bitConnectionBadge').onclick=()=>{showBitView('connect');showPane('connect')};
+$('stepTrain').onclick=()=>showPane('train');$('stepMap').onclick=()=>showPane('map');$('stepConnect').onclick=()=>showPane('connect');$('mappingGoConnect').onclick=()=>showPane('connect');
+$('bitConnectionBadge').onclick=()=>showPane('connect');
 $('trainBtn').onclick=train;$('predictBtn').onclick=()=>predicting?stopPrediction():startPrediction();
 $('threshold').oninput=e=>{confidence=Number(e.target.value)/100;$('thresholdValue').textContent=e.target.value+' %';scheduleSave();gate.reset();setCommand('STOPP','Neue Erkennungsschwelle · Zeichen erneut zeigen')};
 $('emergencyBtn').onclick=()=>{stopCapture();stopPrediction();toast('Erkennung gestoppt. Zum Fortfahren erneut starten.')};
@@ -343,8 +337,8 @@ function updateClassTabs(){
  classes.forEach((c,i)=>{const b=nav.children[i];b.style.setProperty('--tab-accent',classColor(i));b.style.setProperty('--tab-text',classTextColor(i));b.querySelector('b').textContent=i+1;b.querySelector('small').textContent=c.name||'Klasse '+(i+1);b.querySelector('span').textContent=c.samples.length?imageCount(c.samples.length):'Leer';b.setAttribute('aria-label','Klasse '+(i+1)+': '+(c.name||'ohne Namen'));b.setAttribute('aria-pressed',String(i===selectedClass));b.classList.toggle('selected',i===selectedClass);b.disabled=restoring||!!recording||training});
 }
 function showPane(pane,persist=true){
- const ids={collect:'collectPane',train:'trainingSection',live:'liveSection',connect:'connectionSection'},buttons={collect:'stepCollect',train:'stepTrain',live:'stepLive',connect:'stepConnect'};
- if(!ids[pane])return;currentPane=pane;Object.entries(ids).forEach(([key,id])=>{$(id).hidden=key!==pane;$(buttons[key]).classList.toggle('active',key===pane);$(buttons[key]).setAttribute('aria-pressed',String(key===pane))});if(persist)scheduleSave();if(pane==='connect')renderBitMappings();if(pane==='live'&&trained&&testTarget<0)nextTestChallenge();
+ const ids={collect:'collectPane',train:'trainingSection',live:'liveSection',map:'mappingSection',connect:'connectionSection'},buttons={collect:'stepCollect',train:'stepTrain',live:'stepLive',map:'stepMap',connect:'stepConnect'};
+ if(!ids[pane])return;currentPane=pane;Object.entries(ids).forEach(([key,id])=>{$(id).hidden=key!==pane;$(buttons[key]).classList.toggle('active',key===pane);$(buttons[key]).setAttribute('aria-pressed',String(key===pane))});if(persist)scheduleSave();if(pane==='map')renderBitMappings();if(pane==='live'&&trained&&testTarget<0)nextTestChallenge();
 }
 function scheduleSave(delay=120){if(restoring)return;projectDirty=true;savePending=true;$('saveStatus').textContent='Wird lokal gespeichert …';clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,delay)}
 function saveNow(changed=false){
@@ -363,7 +357,7 @@ async function restoreProject(override){
     activeIndices=indices;
     try{if(state.model.kind==='single'&&indices.length===1){oneClass=CameraLabCore.singleProfile(classes[indices[0]].samples);trained=true}else if(state.model.kind==='multi'&&indices.length>1){await tf.ready();head=await tf.loadLayersModel(tf.io.fromMemory(state.model.artifacts));trained=true}if(trained)savedModel=state.model}catch(e){trained=false;savedModel=null}
    }
-   currentPane=['collect','train','live','connect'].includes(state.currentPane)?state.currentPane:'collect';
+   currentPane=['collect','train','live','map','connect'].includes(state.currentPane)?state.currentPane:'collect';
    $('saveStatus').textContent='✓ Projekt wiederhergestellt';if(trained){$('resultBadge').textContent='Modell wiederhergestellt';showTrainMessage('✓ Dein trainiertes Modell ist wieder bereit.')}else if(classes.some(c=>c.samples.length)){showTrainMessage('Deine Bilder sind wiederhergestellt. Bei Bedarf trainieren.');}
   }else $('saveStatus').textContent='Automatisches Speichern aktiv';
  }catch(e){storageHealthy=false;$('saveStatus').textContent='Lokales Speichern nicht verfügbar – bitte exportieren';$('saveStatus').classList.add('error')}
@@ -405,7 +399,7 @@ const numberPatterns={number1:[4,12,4,4,14],number2:[14,17,2,4,31],number3:[30,1
 function renderLED(element,pattern){if(!element)return;const rows=numberPatterns[pattern]||patterns[pattern]||patterns.square;if(!element.children.length)for(let i=0;i<25;i++)element.append(document.createElement('i'));[...element.children].forEach((led,i)=>led.classList.toggle('lit',!!(rows[Math.floor(i/5)]&(1<<(4-i%5)))));element.dataset.pattern=pattern}
 function renderNumberLED(element,symbol){if(!symbol){renderLED(element,'off');return}renderLED(element,'number'+(actionNumbers[symbol]||'1'))}
 function updateBitUI(){
- const connected=!!bitLink?.connected;$('connectBtn').disabled=bitConnecting||connected;$('connectBtn').textContent=bitConnecting?'Verbinde …':bitMode==='usb'?'micro:bit über USB verbinden':bitMode==='native'?'micro:bit in iPad-App verbinden':'micro:bit über Bluetooth verbinden';$('disconnectBtn').hidden=!connected;$('testLedBtn').disabled=!connected||!bitReady||bitTesting;$('testLedBtn').textContent=bitTesting?'Warte auf Antwort …':'2 senden und Antwort prüfen';$('bitGoLive').disabled=!trained||training;$('bitGoLive2').disabled=!trained||training;
+ const connected=!!bitLink?.connected;$('connectBtn').disabled=bitConnecting||connected;$('connectBtn').textContent=bitConnecting?'Verbinde …':bitMode==='usb'?'micro:bit über USB verbinden':bitMode==='native'?'micro:bit in iPad-App verbinden':'micro:bit über Bluetooth verbinden';$('disconnectBtn').hidden=!connected;$('testLedBtn').disabled=!connected||!bitReady||bitTesting;$('testLedBtn').textContent=bitTesting?'Warte auf Antwort …':'2 senden und Antwort prüfen';$('bitGoLive').disabled=!trained||training;
  updateConnectionBadge();
  $('usbTab').hidden=bitMode==='native';$('bleTab').hidden=bitMode==='native';$('usbTab').classList.toggle('active',bitMode==='usb');$('bleTab').classList.toggle('active',bitMode==='ble');$('usbTab').setAttribute('aria-pressed',String(bitMode==='usb'));$('bleTab').setAttribute('aria-pressed',String(bitMode==='ble'));
  $('modeHint').textContent=bitMode==='native'?'iPad-App erkannt. Kamera-KI und Bluetooth laufen zusammen. Starte zuerst das Teachable-Labor-Startprogramm auf dem micro:bit.':bitMode==='usb'?'Windows erkannt: USB-Datenkabel verwenden und im Browser den seriellen micro:bit-Anschluss wählen.':'iPad erkannt: Diese Seite in Bluefy öffnen. Taste A zeigt zwei einzelne LEDs, wenn das richtige Startprogramm läuft.';
@@ -413,7 +407,7 @@ function updateBitUI(){
  $('connectInstruction').textContent=bitMode==='native'?'Bluetooth einschalten und den micro:bit im Auswahlfenster der App wählen.':bitMode==='usb'?'USB-Datenkabel einstecken und den seriellen micro:bit-Anschluss auswählen.':'Bluetooth einschalten, diese Seite in Bluefy öffnen und den BBC micro:bit auswählen. Nicht A+B+Reset oder dreimal Reset drücken.';
  updateStepProgress();
 }
-function showBitView(view){bitView=view;document.querySelector('.bit-connect-view').hidden=view!=='connect';$('bitActionsView').hidden=view!=='actions';renderBitMappings();updateBitUI()}
+function showBitView(view){bitView='connect';updateBitUI()}
 const actionNumbers=Object.fromEntries(Object.entries(MicrobitTransport.COMMAND_CODES).map(([name,number])=>[name.toLowerCase(),number]));
 function setClassSymbol(slot,symbol){
  const c=classes[slot];if(!c)return;const normalized=symbol&&Object.hasOwn(actionNumbers,symbol)?symbol:null;
@@ -421,8 +415,8 @@ function setClassSymbol(slot,symbol){
  if(currentClass===slot){currentSymbol=normalized;$('liveAction').textContent=normalized?actionNumbers[normalized]:'keine Aktion';if(normalized)sendCurrent();else $('liveDelivery').textContent='Für diese Klasse ist keine micro:bit-Zahl zugeordnet'}
 }
 function renderBitMappings(){
- const container=$('bitMappings');container.replaceChildren();const occupied=classes.map((c,i)=>({c,i})).filter(({c})=>c.samples.length);
- if(!occupied.length){const p=document.createElement('p');p.className='mapping-empty';p.textContent='Du kannst die micro:bit-Zahl direkt bei jeder Klasse wählen. Hier erscheint später zusätzlich die Gesamtübersicht.';container.append(p);return}
+ const container=$('bitMappings');container.replaceChildren();const occupied=classes.map((c,i)=>({c,i}));
+ if(!occupied.length){const p=document.createElement('p');p.className='mapping-empty';p.textContent='Lege zuerst eine Klasse an.';container.append(p);return}
  occupied.forEach(({c,i})=>{
   const row=document.createElement('div');row.className='symbol-row';const matrix=document.createElement('div');matrix.className='led-matrix symbol-mini';matrix.setAttribute('aria-hidden','true');renderNumberLED(matrix,getClassSymbol(i));
   const label=document.createElement('label');const name=document.createElement('span');name.textContent=classLabel(i);const select=document.createElement('select');select.setAttribute('aria-label','micro:bit-Zahl für '+classLabel(i));
@@ -436,7 +430,7 @@ $('teacherBtn').onclick=openTeacher;$('teacherQuick').onclick=openTeacher;
 $('usbTab').onclick=async()=>{if(bitMode==='usb')return;await disconnectBit();bitMode='usb';$('bitError').hidden=true;updateBitUI()};
 $('bleTab').onclick=async()=>{if(bitMode==='ble')return;await disconnectBit();bitMode='ble';$('bitError').hidden=true;updateBitUI()};
 $('connectBtn').onclick=connectBit;$('disconnectBtn').onclick=disconnectBit;
-$('bitActionsTab').onclick=()=>showBitView('actions');$('bitBack').onclick=()=>showBitView('connect');$('bitGoLive').onclick=()=>showPane('live');$('bitGoLive2').onclick=()=>showPane('live');
+$('bitGoLive').onclick=()=>showPane('live');
 $('testLedBtn').onclick=async()=>{if(!bitLink?.connected||bitTesting)return;bitTesting=true;$('testStatus').textContent='Zahl 2 unterwegs …';updateBitUI();try{await bitLink.send('HEART');$('testStatus').textContent='✓ micro:bit meldet OK:2. Auf den LEDs erscheint das Muster mit zwei Punkten.'}catch(e){$('testStatus').textContent='Keine Antwort auf die Zahl 2. USB-Kabel und COM-Port prüfen, dann erneut verbinden.';await disconnectBit()}finally{bitTesting=false;updateBitUI()}};
 for(const matrix of document.querySelectorAll('.led-matrix'))renderLED(matrix,matrix.dataset.pattern||'heart');
-renderCards();showBitView('connect');restoreProject();
+renderCards();updateBitUI();restoreProject();

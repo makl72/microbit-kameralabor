@@ -542,3 +542,26 @@ dialog a{color:#7535bd}
   .diversity-metrics{gap:4px}
   .diversity-metrics span{padding:4px 3px;font-size:8px}
 }
+
+/* iPad collection layout: keep cards in normal flow instead of shrinking them into each other */
+#collectPane{overflow-y:auto;overflow-x:hidden}
+#collectPane #classCards{flex:0 0 auto;min-height:auto;display:block}
+#collectPane .classcard{flex:0 0 auto;min-height:auto;overflow:visible}
+#collectPane .card-body{flex:none}
+#collectPane .photo-review{flex:none;margin-top:2px}
+#collectPane .collect-footer{flex:none;margin-top:6px;position:relative;z-index:0;background:#fff}
+@media(orientation:landscape) and (min-width:801px){
+  #collectPane{padding-bottom:18px}
+  #collectPane .classcard{gap:12px;padding-bottom:2px}
+  #collectPane .photo-review{margin-top:4px}
+  #collectPane .collect-footer{margin-top:8px;padding-top:10px}
+}
+@media(orientation:landscape) and (max-height:820px) and (min-width:801px){
+  #collectPane #classCards{flex:none}
+  #collectPane .classcard{flex:none;min-height:auto;gap:10px;padding-bottom:2px}
+  #collectPane .card-body{padding-bottom:11px}
+  #collectPane .capturebuttons{margin-top:2px}
+  #collectPane .photo-review{margin-top:2px}
+  #collectPane .photo-strip{min-height:64px}
+  #collectPane .collect-footer{margin-top:7px;padding-top:9px}
+}

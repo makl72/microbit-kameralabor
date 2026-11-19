@@ -389,3 +389,138 @@ dialog a{color:#7535bd}
 @media(max-width:800px){
   .steps{grid-template-columns:repeat(5,minmax(0,1fr))}
 }
+
+/* Final navigation + animated micro:bit visual for the last two panes */
+.steps .step-connect{gap:9px}
+.steps .step-connect .step-icon{font-size:24px}
+.steps .step-connect.active{background:linear-gradient(180deg,#8fdedc,#62c9c9);border-color:#55b9bb;color:#24395b;box-shadow:0 4px 0 #439da0}
+
+.microbit-visual{
+  position:relative;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:22px;
+  overflow:hidden;
+  padding:24px;
+  background:
+    radial-gradient(circle at 15% 20%,#f7db68 0 5px,transparent 6px),
+    radial-gradient(circle at 82% 25%,#d9a4ff 0 6px,transparent 7px),
+    radial-gradient(circle at 22% 80%,#89dfdf 0 5px,transparent 6px),
+    linear-gradient(145deg,#2e235d,#4b2a79 55%,#235d70);
+  color:#fff;
+  border-color:#34235f;
+  box-shadow:0 8px 0 #211844;
+}
+.microbit-visual::before,.microbit-visual::after{
+  content:"";
+  position:absolute;
+  border-radius:50%;
+  border:2px dashed #ffffff31;
+  animation:orbit-ring 8s linear infinite;
+}
+.microbit-visual::before{width:320px;height:320px}
+.microbit-visual::after{width:430px;height:430px;animation-duration:12s;animation-direction:reverse}
+.fun-bit-board{
+  position:relative;
+  width:min(78%,300px);
+  aspect-ratio:1.26;
+  border-radius:22px 22px 30px 30px;
+  background:linear-gradient(145deg,#1c1d2c,#10111d);
+  border:4px solid #090a11;
+  box-shadow:0 18px 30px #0006,inset 0 0 0 2px #ffffff12;
+  animation:bit-bob 3.2s ease-in-out infinite;
+  z-index:2;
+}
+.fun-bit-title{
+  position:absolute;
+  top:10px;left:50%;
+  transform:translateX(-50%);
+  color:#fff;
+  font-size:17px;
+  font-weight:900;
+  letter-spacing:1px;
+}
+.fun-bit-face.led-matrix{
+  position:absolute;
+  width:43%;
+  height:auto;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-45%);
+  padding:9px;
+  gap:4px;
+  background:#17192b;
+  border:2px solid #2d3150;
+  border-radius:12px;
+}
+.fun-bit-face i.lit{animation:led-party 1.25s ease-in-out infinite}
+.fun-button{
+  position:absolute;
+  top:47%;
+  transform:translateY(-50%);
+  width:38px;height:38px;min-height:38px;
+  padding:0;
+  border-radius:50%;
+  background:#d83c57;
+  color:#fff;
+  border:3px solid #762131;
+  box-shadow:inset 0 -4px 0 #8f293c;
+  pointer-events:none;
+}
+.fun-a{left:9%}.fun-b{right:9%}
+.fun-pin{
+  position:absolute;
+  bottom:-16px;
+  width:24px;height:34px;
+  background:#e6c74e;
+  border:2px solid #9f8423;
+  border-radius:0 0 14px 14px;
+}
+.pin-1{left:8%}.pin-2{left:27%}.pin-3{left:46%}.pin-4{right:27%}.pin-5{right:8%}
+.microbit-visual-copy{
+  position:relative;
+  z-index:2;
+  max-width:360px;
+  text-align:center;
+}
+.microbit-visual-copy .eyebrow{color:#e1c9ff}
+.microbit-visual-copy h2{margin:6px 0 8px;color:#fff;font-size:27px}
+.microbit-visual-copy p{margin:0;color:#e5dcf4;font-size:13px;line-height:1.6}
+.microbit-spark{
+  position:absolute;
+  display:grid;
+  place-items:center;
+  width:42px;height:42px;
+  border-radius:50%;
+  font-weight:950;
+  color:#35244e;
+  background:#ffd857;
+  box-shadow:0 5px 0 #c8a330;
+  animation:spark-float 3s ease-in-out infinite;
+  z-index:3;
+}
+.spark-a{left:10%;top:20%}
+.spark-b{right:11%;top:27%;animation-delay:-1s;background:#aee8e7;box-shadow:0 5px 0 #67b9b8}
+.spark-c{right:18%;bottom:20%;animation-delay:-2s;background:#e7b7ff;box-shadow:0 5px 0 #a66bc5}
+@keyframes bit-bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-12px) rotate(2deg)}}
+@keyframes led-party{0%,100%{filter:brightness(.85);transform:scale(.9)}50%{filter:brightness(1.8);transform:scale(1.12)}}
+@keyframes spark-float{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-14px) rotate(7deg)}}
+@keyframes orbit-ring{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){
+  .fun-bit-board,.fun-bit-face i.lit,.microbit-spark,.microbit-visual::before,.microbit-visual::after{animation:none!important}
+}
+@media(max-width:800px){
+  .microbit-visual{min-height:260px;padding:18px}
+  .fun-bit-board{width:min(58%,250px)}
+  .microbit-visual-copy h2{font-size:22px}
+}
+@media(max-height:720px) and (min-width:801px){
+  .microbit-visual{gap:10px;padding:15px}
+  .fun-bit-board{width:min(62%,220px)}
+  .microbit-visual-copy h2{font-size:20px;margin:3px 0 4px}
+  .microbit-visual-copy p{font-size:11px}
+  .microbit-spark{width:34px;height:34px;font-size:12px}
+}

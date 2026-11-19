@@ -32,7 +32,7 @@ function renderCards(){
  selectedClass=Math.max(0,Math.min(selectedClass,classes.length-1));
  classes.forEach((c,i)=>{
   const card=document.createElement('article');card.className='classcard';card.style.setProperty('--color',classColor(i));card.style.setProperty('--class-text',classTextColor(i));card.id='class'+i;
-  card.innerHTML='<div class="card-top"><span class="classnumber">'+(i+1)+'</span><input class="class-name" maxlength="60" aria-label="Name Klasse '+(i+1)+'"><button class="plain clear" aria-label="Bilder von Klasse '+(i+1)+' löschen">Bilder löschen</button></div><div class="card-body"><div class="thumbnail"></div><div class="sampleinfo"><div class="count"><span></span><small>Startziel</small></div><div class="track"><i></i></div><div class="remaining"></div><div class="diversity" data-level="empty"><span>Bildvielfalt</span><strong>noch zu wenige Bilder</strong></div></div><div class="capturebuttons"><button class="record" disabled>● Aufnehmen</button><button class="series" disabled>Serie</button></div></div><div class="photo-review"><div class="photo-review-head"><div><strong>Lernbilder</strong><span>Einzelne Bilder mit × löschen</span></div><button class="gallery-open secondary">Bilder ansehen</button></div><div class="photo-strip" aria-label="Zuletzt aufgenommene Bilder"></div></div>';
+  card.innerHTML='<div class="card-top"><span class="classnumber">'+(i+1)+'</span><input class="class-name" maxlength="60" aria-label="Name Klasse '+(i+1)+'"><button class="plain clear" aria-label="Bilder von Klasse '+(i+1)+' löschen">Bilder löschen</button></div><div class="card-body"><div class="thumbnail"></div><div class="sampleinfo"><div class="count"><span></span><small>Startziel</small></div><div class="track"><i></i></div><div class="remaining"></div><div class="diversity" data-level="empty"><div class="diversity-head"><span>Bildvielfalt</span><strong class="diversity-score">—</strong></div><div class="diversity-meter" aria-hidden="true"><i></i></div><div class="diversity-summary">Noch nicht bewertbar</div><div class="diversity-reliability">Noch zu wenige Bilder</div><div class="diversity-metrics"><span>Doppelungen <b>—</b></span><span>Bandbreite <b>—</b></span><span>Neuheit <b>—</b></span></div></div></div><div class="capturebuttons"><button class="record" disabled>● Aufnehmen</button><button class="series" disabled>Serie</button></div></div><div class="photo-review"><div class="photo-review-head"><div><strong>Lernbilder</strong><span>Einzelne Bilder mit × löschen</span></div><button class="gallery-open secondary">Bilder ansehen</button></div><div class="photo-strip" aria-label="Zuletzt aufgenommene Bilder"></div></div>';
   const nameWrap=document.createElement('label');nameWrap.className='name-field';const nameCaption=document.createElement('span');nameCaption.textContent='Name der Klasse';const nameInput=card.querySelector('.class-name');nameInput.before(nameWrap);nameWrap.append(nameCaption,nameInput);nameInput.placeholder='Eigenen Namen eingeben';nameInput.autocomplete='off';
   const name=card.querySelector('.class-name');name.value=c.name;name.addEventListener('input',()=>{c.name=name.value;renderBars();updateControls();updateClassTabs();scheduleSave()});name.addEventListener('blur',()=>{c.name=name.value.trim();name.value=c.name;renderBars();updateControls();updateClassTabs();scheduleSave()});
   card.querySelector('.clear').onclick=()=>deleteImages(i,c.samples.map((_,j)=>j));
@@ -51,7 +51,18 @@ function updateCards(){
   total+=c.samples.length;const card=$('class'+i);if(!card)return;const n=c.samples.length;
   card.querySelector('.count span').textContent=n+' / '+TARGET+' Bilder';card.querySelector('.track i').style.width=Math.min(100,n/TARGET*100)+'%';
   card.querySelector('.remaining').textContent=n>=TARGET?'Startziel erreicht · neue Ansichten bleiben hilfreich':'Noch '+imageCount(TARGET-n)+' bis zum Startziel';
-  const diversity=CameraLabCore.sampleDiversity(c.samples),div=card.querySelector('.diversity');div.dataset.level=diversity.level;div.querySelector('strong').textContent=diversity.label;if(i===selectedClass)selectedDiversity=diversity;
+  const diversity=CameraLabCore.sampleDiversity(c.samples),div=card.querySelector('.diversity');
+  div.dataset.level=diversity.level;
+  div.querySelector('.diversity-score').textContent=diversity.score===null?'—':diversity.score+' / 100';
+  div.querySelector('.diversity-meter i').style.width=diversity.score===null?'0%':diversity.score+'%';
+  div.querySelector('.diversity-summary').textContent=diversity.label;
+  div.querySelector('.diversity-reliability').textContent=diversity.reliability;
+  const metricValues=div.querySelectorAll('.diversity-metrics b');
+  metricValues[0].textContent=diversity.duplicateRate===null?'—':Math.round(diversity.duplicateRate*100)+' %';
+  metricValues[1].textContent=diversity.spread===null?'—':diversity.spread+' %';
+  metricValues[2].textContent=diversity.novelty===null?'—':diversity.novelty+' %';
+  div.title=diversity.advice||'';
+  if(i===selectedClass)selectedDiversity=diversity;
   const thumb=card.querySelector('.thumbnail');thumb.replaceChildren();if(c.thumb){const im=new Image();im.src=c.thumb;im.alt='Letzte Aufnahme: '+c.name;thumb.append(im)}else thumb.textContent='+';
   const own=recording?.i===i;card.classList.toggle('collecting',own);
   card.querySelector('.record').disabled=!stream||!base||training||cameraStarting||n>=MAX||!!recording&&!own;
@@ -68,12 +79,7 @@ function updateCards(){
   const tip=$('tipText');
   if(!selected.samples.length)tip.innerHTML='<strong>Genau diesen Ausschnitt lernt die KI.</strong> Sammle dieselbe Klasse aus verschiedenen Winkeln, Abständen und Hintergründen.';
   else if(selected.samples.length<MIN)tip.innerHTML='<strong>Noch ein paar Beispiele.</strong> Für das Training fehlen in dieser Klasse noch '+(MIN-selected.samples.length)+' Bilder.';
-  else if(d.level==='very-low')tip.innerHTML='<strong>Sehr wenig Vielfalt.</strong> Die Bilder sind fast gleich. Ändere deutlich Winkel, Abstand und Hintergrund.';
-  else if(d.level==='low')tip.innerHTML='<strong>Noch wenig Vielfalt.</strong> Zeige dieselbe Klasse aus deutlich anderen Ansichten.';
-  else if(d.level==='fair')tip.innerHTML='<strong>Etwas Vielfalt vorhanden.</strong> Ergänze jetzt neue Perspektiven und Abstände.';
-  else if(d.level==='good')tip.innerHTML='<strong>Gut gemischt.</strong> Ergänze noch ein paar ungewohnte Ansichten oder Hintergründe.';
-  else if(d.level==='very-good')tip.innerHTML='<strong>Sehr gute Bildvielfalt.</strong> Das Training ist abwechslungsreich. Teste später mit wirklich neuen Ansichten.';
-  else tip.innerHTML='<strong>Sehr vielfältig.</strong> Die Klasse enthält viele unterschiedliche Ansichten. Jetzt ist ein Praxistest besonders sinnvoll.';
+  else tip.innerHTML='<strong>'+d.label+' · '+d.score+'/100.</strong> '+d.advice;
  }
  $('removeClassBtn').disabled=restoring||training||!!recording||extracting||classes.length<=1;
  $('addClassBtn').disabled=restoring||training||!!recording||extracting;

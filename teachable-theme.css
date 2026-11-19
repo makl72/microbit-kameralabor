@@ -363,61 +363,29 @@ dialog a{color:#7535bd}
   .photo-tile{width:52px;height:52px}
 }
 
-/* Per-class micro:bit number mapping — deliberately visible in the collection workflow */
-.class-number-choice{
-  display:grid;
-  grid-template-columns:58px minmax(0,1fr);
-  align-items:center;
-  gap:12px;
-  padding:12px 14px;
-  border:2px solid #d7c5ef;
-  border-radius:14px;
-  background:linear-gradient(135deg,#f7f1ff,#efe5ff);
+
+/* Dedicated mapping tab + calmer collection view */
+.steps{grid-template-columns:repeat(5,minmax(0,1fr))}
+.mapping-pane{gap:14px}
+.mapping-intro{margin:0;color:#687592;font-size:13px;line-height:1.55;max-width:760px}
+.mapping-pane #bitMappings{display:grid;gap:10px;overflow:auto;padding:2px 2px 8px}
+.mapping-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:auto;padding-top:10px;border-top:1px solid #e8e2f0}
+.mapping-footer span{font-size:12px;color:#737d95}
+.mapping-footer button{min-height:42px}
+.photo-review{position:relative;z-index:1;overflow:visible}
+.photo-strip{position:relative;z-index:2;min-height:68px;padding:9px 4px 8px}
+.collect-footer{position:relative;z-index:0;flex:none}
+@media(orientation:landscape) and (max-height:820px) and (min-width:801px){
+  .photo-review{padding:9px 10px 13px}
+  .photo-review-head{margin-bottom:8px}
+  .photo-strip{min-height:66px;padding-top:10px;padding-bottom:8px}
+  .photo-tile{width:50px;height:50px}
+  .classcard{padding-bottom:8px}
+  .collect-footer{margin-top:0;padding-top:7px}
 }
-.class-number-preview.led-matrix{
-  width:54px;
-  height:54px;
-  padding:7px;
-  gap:2px;
-  background:#32215b;
-  border:2px solid #6f45a1;
-  border-radius:10px;
+@media(max-width:1100px){
+  .steps button{font-size:11px;padding-inline:5px}
 }
-.class-number-choice label{
-  display:grid;
-  grid-template-columns:minmax(130px,.8fr) minmax(200px,1.2fr);
-  grid-template-areas:"caption caption" "text select";
-  align-items:center;
-  gap:4px 12px;
-  min-width:0;
-}
-.class-number-choice label>span{
-  grid-area:caption;
-  font-size:11px;
-  font-weight:900;
-  letter-spacing:.7px;
-  text-transform:uppercase;
-  color:#76519d;
-}
-.class-number-choice label>strong{
-  grid-area:text;
-  font-size:13px;
-  color:#4a3767;
-}
-.class-number-choice select{
-  grid-area:select;
-  min-height:44px;
-  width:100%;
-  border:2px solid #b99bdd;
-  border-radius:10px;
-  background:#fff;
-  color:#3c255e;
-  padding:8px 10px;
-  font-size:14px;
-  font-weight:850;
-}
-@media(max-width:560px){
-  .class-number-choice{grid-template-columns:50px minmax(0,1fr);padding:10px}
-  .class-number-preview.led-matrix{width:46px;height:46px;padding:6px}
-  .class-number-choice label{grid-template-columns:1fr;grid-template-areas:"caption" "text" "select"}
+@media(max-width:800px){
+  .steps{grid-template-columns:repeat(5,minmax(0,1fr))}
 }

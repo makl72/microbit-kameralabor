@@ -363,7 +363,7 @@ $('saveBtn').onclick=exportProject;$('loadBtn').onclick=()=>$('loadFile').click(
 $('quickSaveBtn').onclick=exportProject;
 $('helpBtn').onclick=()=>$('helpDialog').showModal();
 for(const d of document.querySelectorAll('dialog')){d.querySelectorAll('.close,.close-action').forEach(b=>b.onclick=()=>d.close());d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()}})}
-setInterval(()=>{if(predicting&&performance.now()-lastInference>1200){stopPrediction();toast('Erkennung zu langsam. STOPP gesetzt; erneut starten.')}},400);
+setInterval(()=>{if(predicting&&performance.now()-lastInference>3500){stopPrediction();toast('Die Erkennung hat zu lange nicht geantwortet und wurde gestoppt. Du kannst sie direkt wieder starten.')}},500);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){stopCapture();stopPrediction()}else if(stream){lastVideoTime=$('video').currentTime;lastVideoProgress=performance.now();$('video').play().catch(()=>{})}});
 window.addEventListener('pagehide',()=>{stopCapture();stopPrediction();saveNow();disconnectBit()});
 window.addEventListener('orientationchange',()=>saveNow());

@@ -1,7 +1,10 @@
-/* Pure project validation and stable-command gate. No camera or network access. */
+/* Pure project validation, diversity heuristic and stable-command gate. No camera or network access. */
 (function(root){
   'use strict';
   const TARGET=50,MIN=10,MAX=300;
+  const SYMBOLS=['heart','smile','left','right','up','down','check','cross','square','off'];
+  const LEGACY_SYMBOLS=['heart','smile','left','right','check'];
+
   function trainingReadiness(classes){
     const active=classes.map((c,i)=>({index:i,name:c.name||'Klasse '+(i+1),count:c.samples.length,missing:Math.max(0,MIN-c.samples.length)})).filter(c=>c.count>0);
     const missing=active.filter(c=>c.missing>0);
@@ -9,14 +12,29 @@
   }
   function normalize(row){const norm=Math.hypot(...row);return row.map(v=>norm?v/norm:0)}
   function cosine(a,b){let sum=0;for(let i=0;i<a.length;i++)sum+=a[i]*b[i];return sum}
+  function sampleDiversity(samples){
+    if(!Array.isArray(samples)||samples.length<3)return {score:null,label:'noch zu wenige Bilder',level:'empty'};
+    const limit=36,step=Math.max(1,Math.floor(samples.length/limit)),picked=[];
+    for(let i=0;i<samples.length&&picked.length<limit;i+=step)picked.push(normalize(samples[i]));
+    let sum=0,pairs=0;
+    for(let i=0;i<picked.length;i++)for(let j=i+1;j<picked.length;j++){sum+=Math.max(0,1-cosine(picked[i],picked[j]));pairs++}
+    const distance=pairs?sum/pairs:0,score=Math.max(0,Math.min(1,distance/.12));
+    if(score<.18)return {score,label:'sehr ähnlich',level:'low'};
+    if(score<.42)return {score,label:'etwas ähnlich',level:'medium'};
+    if(score<.7)return {score,label:'gut gemischt',level:'good'};
+    return {score,label:'sehr vielfältig',level:'great'};
+  }
   function singleProfile(samples){
     const refs=samples.map(normalize);
     const nearest=refs.map((a,i)=>Math.max(...refs.map((b,j)=>i===j?-1:cosine(a,b)))).sort((a,b)=>a-b);
     const reference=Math.max(.70,Math.min(.98,nearest[Math.floor(nearest.length*.1)]||.9));
     return {refs,reference,floor:Math.max(.45,reference-.15)};
   }
-  function singleScore(row,profile){const ref=normalize(row);const similarity=Math.max(...profile.refs.map(r=>cosine(ref,r)));return Math.max(0,Math.min(.99,.95*(similarity-profile.floor)/(profile.reference-profile.floor)))}
-  function mapProbabilities(values,indices){const result=Array(5).fill(0);indices.forEach((slot,i)=>result[slot]=values[i]);return result}
+  function singleScore(row,profile){const ref=normalize(row);const similarity=Math.max(...profile.refs.map(r=>cosine(ref,r)));return Math.max(0,Math.min(.99,.95*(similarity-profile.floor)/(profile.reference-profile.floor))}
+  function mapProbabilities(values,indices,size){
+    const length=Math.max(Number(size)||0,...indices.map(i=>i+1),0),result=Array(length).fill(0);
+    indices.forEach((slot,i)=>result[slot]=values[i]??0);return result;
+  }
   function command(s){return /^[A-Z0-9_]{1,18}$/.test(s)}
   function projectFilename(name){return ((name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'teachable-labor-projekt')+'.json'}
   function projectNameForFile(filename,embeddedName){
@@ -25,7 +43,7 @@
     return stem&&filename!==projectFilename(embedded)?stem:embedded||stem||'Importiertes Experiment';
   }
   function validateProject(p){
-    if(!p||p.format!=='microbit-kameralabor-v1'||p.base!=='mobilenet-v1-050'||!Array.isArray(p.classes)||p.classes.length!==5)throw Error('Keine passende Teachable-Labor-Projektdatei (fünf Klassen erforderlich).');
+    if(!p||p.format!=='microbit-kameralabor-v1'||p.base!=='mobilenet-v1-050'||!Array.isArray(p.classes)||p.classes.length<1||p.classes.length>200)throw Error('Keine passende Teachable-Labor-Projektdatei.');
     let dim=null;
     const classes=p.classes.map((c,i)=>{
       if(!c||typeof c.name!=='string'||c.name.length>60||!command(c.command)||!Array.isArray(c.samples)||c.samples.length>MAX)throw Error('Ungültige Klasse '+(i+1)+'.');
@@ -37,7 +55,9 @@
       if(c.images!==undefined&&(!Array.isArray(c.images)||c.images.length!==samples.length))throw Error('Bildübersicht und Lernmerkmale passen nicht zusammen.');
       const images=c.images?c.images.map(v=>typeof v==='string'&&v.length<100000&&/^data:image\/jpeg;base64,[a-zA-Z0-9+/=]+$/.test(v)?v:null):Array(samples.length).fill(null);
       if(!c.images&&thumb&&images.length)images[images.length-1]=thumb;
-      return {name:c.name.trim()||'Klasse '+(i+1),command:c.command,samples,images,thumb,symbol:['heart','smile','left','right','up','down','check','cross','square','off'].includes(c.symbol)?c.symbol:['heart','smile','left','right','check'][i]};
+      const requested=c.symbol;
+      const symbol=requested===undefined?(LEGACY_SYMBOLS[i]||null):requested===null||requested===''?null:SYMBOLS.includes(requested)?requested:null;
+      return {name:c.name.trim()||'Klasse '+(i+1),command:c.command,samples,images,thumb,symbol};
     });
     return classes;
   }
@@ -58,6 +78,6 @@
       return {index,reason:'Seit mindestens 0,6 s stabil erkannt'};
     }};
   }
-  const api={TARGET,MIN,MAX,trainingReadiness,singleProfile,singleScore,mapProbabilities,command,projectFilename,projectNameForFile,removeSamples,validateProject,createGate};
+  const api={TARGET,MIN,MAX,trainingReadiness,sampleDiversity,singleProfile,singleScore,mapProbabilities,command,projectFilename,projectNameForFile,removeSamples,validateProject,createGate};
   if(typeof module!=='undefined')module.exports=api;else root.CameraLabCore=api;
 })(typeof window!=='undefined'?window:globalThis);

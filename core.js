@@ -32,32 +32,73 @@
     return sum;
   }
 
+  function percentile(values,p){
+    if(!values.length)return 0;
+    const sorted=[...values].sort((a,b)=>a-b);
+    const index=Math.max(0,Math.min(sorted.length-1,Math.round((sorted.length-1)*p)));
+    return sorted[index];
+  }
+
   function sampleDiversity(samples){
     if(!Array.isArray(samples)||samples.length<3){
-      return {score:null,label:'noch zu wenige Bilder',level:'empty'};
+      return {
+        score:null,label:'Noch nicht bewertbar',level:'empty',reliability:'Noch zu wenige Bilder',
+        duplicateRate:null,duplicateFreedom:null,spread:null,novelty:null,
+        advice:'Nimm zuerst mindestens 3 unterschiedliche Bilder auf.'
+      };
     }
-    const limit=36;
+
+    const limit=48;
     const step=Math.max(1,Math.floor(samples.length/limit));
     const picked=[];
-    for(let i=0;i<samples.length&&picked.length<limit;i+=step){
-      picked.push(normalize(samples[i]));
-    }
-    let sum=0;
-    let pairs=0;
+    for(let i=0;i<samples.length&&picked.length<limit;i+=step)picked.push(normalize(samples[i]));
+
+    const pairDistances=[];
+    const nearestDistances=[];
     for(let i=0;i<picked.length;i++){
-      for(let j=i+1;j<picked.length;j++){
-        sum+=Math.max(0,1-cosine(picked[i],picked[j]));
-        pairs++;
+      let nearest=Infinity;
+      for(let j=0;j<picked.length;j++){
+        if(i===j)continue;
+        const distance=Math.max(0,1-cosine(picked[i],picked[j]));
+        nearest=Math.min(nearest,distance);
+        if(j>i)pairDistances.push(distance);
       }
+      if(Number.isFinite(nearest))nearestDistances.push(nearest);
     }
-    const distance=pairs?sum/pairs:0;
-    const score=Math.max(0,Math.min(1,distance/.12));
-    if(score<.12)return {score:score,label:'1/6 · sehr ähnlich',level:'very-low'};
-    if(score<.24)return {score:score,label:'2/6 · wenig vielfältig',level:'low'};
-    if(score<.38)return {score:score,label:'3/6 · etwas vielfältig',level:'fair'};
-    if(score<.55)return {score:score,label:'4/6 · gut gemischt',level:'good'};
-    if(score<.75)return {score:score,label:'5/6 · sehr gut gemischt',level:'very-good'};
-    return {score:score,label:'6/6 · sehr vielfältig',level:'great'};
+
+    const duplicateRate=nearestDistances.filter(v=>v<.006).length/nearestDistances.length;
+    const duplicateFreedom=Math.max(0,Math.min(1,1-duplicateRate));
+    const spread=Math.max(0,Math.min(1,percentile(pairDistances,.75)/.15));
+    const novelty=Math.max(0,Math.min(1,percentile(nearestDistances,.50)/.045));
+    const raw=.42*spread+.38*novelty+.20*duplicateFreedom;
+    const score=Math.round(Math.max(0,Math.min(1,raw))*100);
+
+    let level,label;
+    if(score<18){level='very-low';label='Fast identisch'}
+    else if(score<32){level='low';label='Wenig abwechslungsreich'}
+    else if(score<47){level='fair';label='Erste echte Unterschiede'}
+    else if(score<62){level='good';label='Gut variiert'}
+    else if(score<76){level='very-good';label='Sehr abwechslungsreich'}
+    else if(score<90){level='great';label='Stark gemischt'}
+    else{level='excellent';label='Außergewöhnlich vielfältig'}
+
+    const reliability=samples.length<6?'Erste Schätzung':samples.length<10?'Vorläufige Bewertung':samples.length<20?'Solide Bewertung':'Stabile Bewertung';
+
+    let advice;
+    if(duplicateRate>.45)advice='Viele Aufnahmen sind nahezu doppelt. Ändere die Szene deutlicher statt nur weiterzuklicken.';
+    else if(spread<.34)advice='Die Gesamtansichten liegen noch eng beieinander. Variiere Perspektive, Abstand oder Hintergrund stärker.';
+    else if(novelty<.32)advice='Neue Bilder ähneln den vorhandenen stark. Suche bewusst Ansichten, die bisher fehlen.';
+    else if(score<62)advice='Die Richtung stimmt. Ergänze einige deutlich andere Ansichten derselben Klasse.';
+    else if(score<76)advice='Gute Mischung. Ein paar ungewohnte Perspektiven machen das Training robuster.';
+    else advice='Breite Mischung. Jetzt lohnt sich besonders der Test mit wirklich neuen Ansichten.';
+
+    return {
+      score,label,level,reliability,advice,
+      duplicateRate,
+      duplicateFreedom:Math.round(duplicateFreedom*100),
+      spread:Math.round(spread*100),
+      novelty:Math.round(novelty*100)
+    };
   }
 
   function singleProfile(samples){

@@ -168,7 +168,7 @@
       else if(SYMBOLS.includes(requested))symbol=requested;
 
       return {
-        name:c.name.trim()||'Klasse '+(i+1),
+        name:c.name.trim(),
         command:c.command,
         samples:samples,
         images:images,

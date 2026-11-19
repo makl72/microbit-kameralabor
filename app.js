@@ -4,7 +4,13 @@ const {TARGET,MIN,MAX}=CameraLabCore;
 const classPalette=['#f3b51b','#3f82e5','#36b936','#ed4f86','#9345d7','#ef6c35','#19a6a6','#6f73d9','#d95db0','#5a9b32'];
 function classColor(i){if(i<classPalette.length)return classPalette[i];const hue=(17+i*47)%360;return 'hsl('+hue+' 68% 50%)'}
 function classTextColor(i){if(i===0)return '#33270a';const hue=(17+i*47)%360;return i>=classPalette.length&&hue>35&&hue<78?'#322600':'#fff'}
-function makeClass(i){return {name:'Klasse '+(i+1),command:'STOPP',samples:[],images:[],thumb:'',symbol:null}}
+function makeClass(i){return {name:'',command:'STOPP',samples:[],images:[],thumb:'',symbol:null}}
+function classLabel(i){return classes[i]?.name?.trim()||'Klasse '+(i+1)}
+function isObsoleteEmptyFive(list){
+ if(!Array.isArray(list)||list.length!==5||list.some(c=>c.samples?.length||c.images?.some(Boolean)))return false;
+ const old=['Offene Hand','Faust','Zeichen links','Zeichen rechts','Hintergrund / keine Geste'];
+ return list.every((c,i)=>{const n=(c.name||'').trim();return !n||n==='Klasse '+(i+1)||n===old[i]});
+}
 let classes=[makeClass(0),makeClass(1)];
 let stream=null,front=false,base=null,basePromise=null,head=null,trained=false,training=false,predicting=false,recording=null,extracting=false,cameraStarting=false,revision=0,trainMessage='',trainError=false;
 let currentCommand='STOPP',lastInference=0,lastLogged='',toastTimer;
@@ -28,7 +34,7 @@ function renderCards(){
   const card=document.createElement('article');card.className='classcard';card.style.setProperty('--color',classColor(i));card.style.setProperty('--class-text',classTextColor(i));card.id='class'+i;
   card.innerHTML='<div class="card-top"><span class="classnumber">'+(i+1)+'</span><input class="class-name" maxlength="60" aria-label="Name Klasse '+(i+1)+'"><button class="plain clear" aria-label="Bilder von Klasse '+(i+1)+' löschen">Bilder löschen</button></div><div class="card-body"><div class="thumbnail"></div><div class="sampleinfo"><div class="count"><span></span><small>Startziel</small></div><div class="track"><i></i></div><div class="remaining"></div><div class="diversity" data-level="empty"><span>Bildvielfalt</span><strong>noch zu wenige Bilder</strong></div></div><div class="capturebuttons"><button class="record" disabled>● Aufnehmen</button><button class="series" disabled>Serie</button></div></div><div class="photo-review"><div class="photo-review-head"><div><strong>Lernbilder</strong><span>Einzelne Bilder mit × löschen</span></div><button class="gallery-open secondary">Bilder ansehen</button></div><div class="photo-strip" aria-label="Zuletzt aufgenommene Bilder"></div></div>';
   const nameWrap=document.createElement('label');nameWrap.className='name-field';const nameCaption=document.createElement('span');nameCaption.textContent='Name der Klasse';const nameInput=card.querySelector('.class-name');nameInput.before(nameWrap);nameWrap.append(nameCaption,nameInput);nameInput.placeholder='Eigenen Namen eingeben';nameInput.autocomplete='off';
-  const name=card.querySelector('.class-name');name.value=c.name;name.addEventListener('input',()=>{c.name=name.value;renderBars();updateControls();updateClassTabs();scheduleSave()});name.addEventListener('blur',()=>{c.name=name.value.trim()||'Klasse '+(i+1);name.value=c.name;renderBars();updateControls();updateClassTabs();scheduleSave()});
+  const name=card.querySelector('.class-name');name.value=c.name;name.addEventListener('input',()=>{c.name=name.value;renderBars();updateControls();updateClassTabs();scheduleSave()});name.addEventListener('blur',()=>{c.name=name.value.trim();name.value=c.name;renderBars();updateControls();updateClassTabs();scheduleSave()});
   card.querySelector('.clear').onclick=()=>deleteImages(i,c.samples.map((_,j)=>j));
   card.querySelector('.gallery-open').onclick=()=>openGallery(i);
   const rec=card.querySelector('.record');rec.addEventListener('pointerdown',e=>{e.preventDefault();rec.setPointerCapture(e.pointerId);startCapture(i,false)});
@@ -115,7 +121,7 @@ function renderBars(probs){
   const row=document.createElement('div');row.className='predrow prediction-card'+(rank===0&&probs?' is-leading':'');row.style.setProperty('--class-color',classColor(i));row.style.setProperty('--class-text',classTextColor(i));
   const identity=document.createElement('div');identity.className='prediction-identity';
   const dot=document.createElement('span');dot.className='prediction-dot';dot.textContent=i+1;
-  const name=document.createElement('strong');name.textContent=c.name;identity.append(dot,name);
+  const name=document.createElement('strong');name.textContent=classLabel(i);identity.append(dot,name);
   const value=document.createElement('b');value.className='prediction-value';value.textContent=probs?Math.round(score*100)+' %':'—';
   const track=document.createElement('div');track.className='track prediction-track';const bar=document.createElement('i');bar.style.background=classColor(i);bar.style.width=probs?score*100+'%':'0%';track.append(bar);
   row.append(identity,value,track);rows.append(row);
@@ -127,7 +133,7 @@ function updateRecognitionHero(probs,result,best){
  const high=Math.max(...probs),stable=result?.index>=0,index=stable?result.index:best;
  hero.dataset.state=stable?'recognized':high>=confidence?'holding':'uncertain';hero.style.setProperty('--hero-color',classColor(index));hero.style.setProperty('--hero-text',classTextColor(index));
  $('heroState').textContent=stable?'✓ STABIL ERKANNT':high>=confidence?'HALTE NOCH KURZ STILL':'NOCH UNSICHER';
- $('heroName').textContent=classes[index]?.name||'—';$('heroConfidence').textContent=Math.round(high*100)+' %';
+ $('heroName').textContent=index>=0?classLabel(index):'—';$('heroConfidence').textContent=Math.round(high*100)+' %';
  $('heroHint').textContent=stable?'Diese Klasse ist seit mindestens 0,6 Sekunden stabil.':high>=confidence?'Die Klasse führt deutlich, muss aber noch stabil bleiben.':'Zeige das Objekt oder Zeichen deutlicher und verändere bei Bedarf den Abstand.';
 }
 function nextTestChallenge(){
@@ -135,14 +141,14 @@ function nextTestChallenge(){
  $('testChallenge').hidden=false;
  let choices=activeIndices.filter(i=>i!==testTarget);if(!choices.length)choices=activeIndices;
  testTarget=choices[Math.floor(Math.random()*choices.length)];
- $('challengeText').textContent='Zeige jetzt: '+classes[testTarget].name;
+ $('challengeText').textContent='Zeige jetzt: '+classLabel(testTarget);
  $('challengeStatus').textContent='Nutze eine neue Ansicht – nicht eines deiner Trainingsbilder.';
  $('testChallenge').classList.remove('success','miss');
 }
 function checkTestChallenge(index){
  if(testTarget<0||index<0)return;
  if(index===testTarget){$('challengeStatus').textContent='✓ Richtig erkannt. Probiere danach eine neue Aufgabe.';$('testChallenge').classList.add('success');$('testChallenge').classList.remove('miss')}
- else{$('challengeStatus').textContent='Erkannt wurde „'+classes[index].name+'“. Ändere Ansicht oder ergänze später gezielt Trainingsbilder.';$('testChallenge').classList.add('miss');$('testChallenge').classList.remove('success')}
+ else{$('challengeStatus').textContent='Erkannt wurde „'+classLabel(index)+'“. Ändere Ansicht oder ergänze später gezielt Trainingsbilder.';$('testChallenge').classList.add('miss');$('testChallenge').classList.remove('success')}
 }
 function invalidate(){savedModel=null;oneClass=null;activeIndices=[];showTrainMessage('');revision++;stopPrediction();trained=false;testTarget=-1;hasStableRecognition=false;if(head){head.dispose();head=null}$('resultBadge').textContent='Neu trainieren';$('resultBadge').classList.remove('recognized');$('resultTitle').textContent='Teste deine KI';renderBars();updateRecognitionHero();$('testChallenge').hidden=true;updateControls()}
 async function loadBase(){
@@ -237,7 +243,7 @@ async function predictLoop(){
    let probs;if(oneClass){probs=CameraLabCore.mapProbabilities([CameraLabCore.singleScore(row,oneClass)],activeIndices,classes.length)}else{const output=tf.tidy(()=>head.predict(tf.tensor2d([row])));try{probs=CameraLabCore.mapProbabilities(Array.from(await output.data()),activeIndices,classes.length)}finally{output.dispose()}}
    if(!predicting||myRevision!==revision||mySerial!==predictSerial)break;lastInference=performance.now();
    const result=gate.update(probs,confidence,lastInference);const best=probs.indexOf(Math.max(...probs)),high=Math.max(...probs);renderBars(probs);updateRecognitionHero(probs,result,best);
-   $('resultTitle').textContent=result.index<0?'Live-Erkennung':'Ich sehe: '+classes[result.index].name;$('resultBadge').textContent=Math.round(high*100)+' %';$('resultBadge').classList.toggle('recognized',result.index>=0);
+   $('resultTitle').textContent=result.index<0?'Live-Erkennung':'Ich sehe: '+classLabel(result.index);$('resultBadge').textContent=Math.round(high*100)+' %';$('resultBadge').classList.toggle('recognized',result.index>=0);
    if(result.index>=0){hasStableRecognition=true;checkTestChallenge(result.index);updateStepProgress()}
    setCommand(result.index<0?'STOPP':classes[result.index].command,result.reason,result.index);
   }catch(e){stopPrediction();toast('Erkennung angehalten: '+e.message);break}
@@ -256,7 +262,7 @@ function updateConnectionBadge(state){
 }
 function setCommand(command,reason,slot=-1){
  const symbol=slot>=0?getClassSymbol(slot):null;const changed=currentSymbol!==symbol;const previousClass=currentClass;currentCommand=command;currentClass=slot;currentSymbol=symbol;
- $('currentCommand').textContent=slot>=0?classes[slot].name:'—';$('liveAction').textContent=slot>=0?(actionNumbers[symbol]||'keine Aktion'):'keine Aktion';
+ $('currentCommand').textContent=slot>=0?classLabel(slot):'—';$('liveAction').textContent=slot>=0?(actionNumbers[symbol]||'keine Aktion'):'keine Aktion';
  if(slot<0)$('liveDelivery').textContent='';
  else if(!symbol)$('liveDelivery').textContent='Für diese Klasse ist keine micro:bit-Zahl zugeordnet';
  else if(!bitReady||!bitLink?.connected)$('liveDelivery').textContent='Vorschau · micro:bit nicht verbunden';
@@ -341,9 +347,10 @@ function saveNow(changed=false){
  saveChain=saveChain.catch(()=>{}).then(async()=>{try{await LabStorage.write(snapshot,'project',storageVersion);storageVersion=snapshot.savedAt;storageHealthy=true;$('saveStatus').textContent='✓ Auf diesem Gerät gespeichert';$('saveStatus').classList.remove('error')}catch(e){storageHealthy=false;$('saveStatus').textContent=e.name==='ProjectConflict'?'Anderer Tab hat Änderungen – bitte exportieren und neu laden':'Speichern nicht möglich – bitte exportieren';$('saveStatus').classList.add('error')}finally{savePending=false}});return saveChain;
 }
 async function restoreProject(override){
+ let migratedDefault=false;
  try{
   const state=override||await LabStorage.read();if(!override)storageVersion=state?.savedAt??null;
-  if(state){const restored=CameraLabCore.validateProject(state.project);if(restored.some(c=>c.samples.some(row=>row.length!==512)))throw Error('Unpassendes lokales Projekt');classes=restored;projectName=typeof state.project.name==='string'?state.project.name.slice(0,60):'Mein Experiment';$('projectName').value=projectName;selectedClass=Number.isInteger(state.selectedClass)&&state.selectedClass>=0&&state.selectedClass<classes.length?state.selectedClass:0;confidence=Math.max(.6,Math.min(.99,Number(state.confidence)||.85));$('threshold').value=Math.round(confidence*100);$('thresholdValue').textContent=Math.round(confidence*100)+' %';
+  if(state){const restored=CameraLabCore.validateProject(state.project);if(restored.some(c=>c.samples.some(row=>row.length!==512)))throw Error('Unpassendes lokales Projekt');classes=!override&&isObsoleteEmptyFive(restored)?[makeClass(0),makeClass(1)]:restored;migratedDefault=!override&&classes!==restored;projectName=typeof state.project.name==='string'?state.project.name.slice(0,60):'Mein Experiment';$('projectName').value=projectName;selectedClass=migratedDefault?0:Number.isInteger(state.selectedClass)&&state.selectedClass>=0&&state.selectedClass<classes.length?state.selectedClass:0;confidence=Math.max(.6,Math.min(.99,Number(state.confidence)||.85));$('threshold').value=Math.round(confidence*100);$('thresholdValue').textContent=Math.round(confidence*100)+' %';
    const status=CameraLabCore.trainingReadiness(classes);const indices=status.active.map(c=>c.index);
    if(state.model&&status.ready&&JSON.stringify(indices)===JSON.stringify(state.model.activeIndices)){
     activeIndices=indices;
@@ -353,12 +360,12 @@ async function restoreProject(override){
    $('saveStatus').textContent='✓ Projekt wiederhergestellt';if(trained){$('resultBadge').textContent='Modell wiederhergestellt';showTrainMessage('✓ Dein trainiertes Modell ist wieder bereit.')}else if(classes.some(c=>c.samples.length)){showTrainMessage('Deine Bilder sind wiederhergestellt. Bei Bedarf trainieren.');}
   }else $('saveStatus').textContent='Automatisches Speichern aktiv';
  }catch(e){storageHealthy=false;$('saveStatus').textContent='Lokales Speichern nicht verfügbar – bitte exportieren';$('saveStatus').classList.add('error')}
- finally{restoring=false;renderCards();showPane(currentPane,false)}
+ finally{restoring=false;renderCards();showPane(currentPane,false);if(migratedDefault){$('saveStatus').textContent='✓ Neuer Start mit zwei leeren Klassen';await saveNow(true)}}
 }
 function makeSnapshot(){return {project:{format:'microbit-kameralabor-v1',base:'mobilenet-v1-050',name:projectName,classes:structuredClone(classes)},model:savedModel,selectedClass,currentPane,confidence,savedAt:Date.now()}}
 function openGallery(slot){if(training||recording||extracting)return;stopPrediction();gallerySlot=slot;gallerySelection.clear();renderGallery();$('galleryDialog').showModal()}
 function renderGallery(){
- const c=classes[gallerySlot];$('galleryUndo').disabled=!undoDeletion||undoDeletion.slot!==gallerySlot;$('galleryTitle').textContent=c.name+' · '+imageCount(c.samples.length);const grid=$('galleryGrid');grid.replaceChildren();
+ const c=classes[gallerySlot];$('galleryUndo').disabled=!undoDeletion||undoDeletion.slot!==gallerySlot;$('galleryTitle').textContent=(c.name.trim()||'Klasse '+(gallerySlot+1))+' · '+imageCount(c.samples.length);const grid=$('galleryGrid');grid.replaceChildren();
  $('galleryHint').textContent=c.samples.length?(c.images?.some(im=>!im)?'Einige ältere Aufnahmen haben kein Vorschaubild. Die Lernmerkmale lassen sich trotzdem einzeln löschen.':'Tippe auf Bilder zum Markieren oder lösche ein Bild direkt mit ×.'):'Diese Klasse ist jetzt leer. Du kannst neue Bilder sammeln.';
  c.samples.forEach((_,i)=>{const item=document.createElement('div');item.className='gallery-item';const choose=document.createElement('button');choose.className='gallery-choice';choose.setAttribute('aria-label','Bild '+(i+1)+' markieren');choose.setAttribute('aria-pressed',String(gallerySelection.has(i)));choose.classList.toggle('selected',gallerySelection.has(i));const im=c.images?.[i];if(im){const image=new Image();image.src=im;image.alt='Lernbild '+(i+1);image.loading='lazy';choose.append(image)}else{const missing=document.createElement('span');missing.textContent='Vorschau fehlt';choose.append(missing)}const label=document.createElement('small');label.textContent='#'+(i+1);choose.append(label);choose.onclick=()=>{gallerySelection.has(i)?gallerySelection.delete(i):gallerySelection.add(i);renderGallery()};const remove=document.createElement('button');remove.className='gallery-remove';remove.textContent='×';remove.setAttribute('aria-label','Bild '+(i+1)+' löschen');remove.onclick=()=>deleteImages(gallerySlot,[i]);item.append(choose,remove);grid.append(item)});
  $('galleryCount').textContent=gallerySelection.size+' markiert';$('deleteSelectedImages').disabled=!gallerySelection.size;$('selectAllImages').disabled=!c.samples.length;$('selectAllImages').textContent=gallerySelection.size===c.samples.length&&c.samples.length?'Auswahl aufheben':'Alle markieren';
@@ -384,7 +391,7 @@ $('restorePrevious').onclick=async()=>{
  if(training||restoring||extracting)return;const previous=await LabStorage.read('previous').catch(()=>null);if(!previous){$('projectDialogStatus').textContent='Noch kein vorheriges Projekt vorhanden.';return}stopCapture();stopPrediction();const current=makeSnapshot();restoring=true;invalidate();undoDeletion=null;$('undoBar').hidden=true;await restoreProject(previous);await LabStorage.write(current,'previous');await saveNow(true);$('newProjectDialog').close();toast('Vorheriges Projekt wiederhergestellt.');
 };
 $('addClassBtn').onclick=()=>{if(restoring||training||recording||extracting)return;stopPrediction();invalidate();classes.push(makeClass(classes.length));selectedClass=classes.length-1;renderCards();saveNow(true);toast('Neue Klasse hinzugefügt.')};
-$('removeClassBtn').onclick=()=>{if(restoring||training||recording||extracting||classes.length<=1)return;const c=classes[selectedClass];if(c.samples.length&&!confirm('Klasse „'+c.name+'“ mit '+imageCount(c.samples.length)+' wirklich löschen?'))return;stopPrediction();classes.splice(selectedClass,1);selectedClass=Math.max(0,Math.min(selectedClass,classes.length-1));classes.forEach((item,i)=>{if(!item.name.trim()||/^Klasse \\d+$/.test(item.name))item.name='Klasse '+(i+1)});invalidate();renderCards();saveNow(true);toast('Klasse gelöscht.')};
+$('removeClassBtn').onclick=()=>{if(restoring||training||recording||extracting||classes.length<=1)return;const c=classes[selectedClass];if(c.samples.length&&!confirm('Klasse „'+classLabel(selectedClass)+'“ mit '+imageCount(c.samples.length)+' wirklich löschen?'))return;stopPrediction();classes.splice(selectedClass,1);selectedClass=Math.max(0,Math.min(selectedClass,classes.length-1));classes.forEach(item=>{item.name=item.name.trim()});invalidate();renderCards();saveNow(true);toast('Klasse gelöscht.')};
 $('nextChallenge').onclick=nextTestChallenge;
 const patterns=MicrobitTransport.symbols;
 const numberPatterns={number1:[4,12,4,4,14],number2:[14,17,2,4,31],number3:[30,1,6,1,30],number4:[18,18,31,2,2],number5:[31,16,30,1,30],number6:[15,16,30,17,14],number7:[31,2,4,8,8],number8:[14,17,14,17,14],number9:[14,17,15,1,30],number10:[23,21,21,21,23]};
@@ -412,7 +419,7 @@ function renderBitMappings(){
  if(!occupied.length){const p=document.createElement('p');p.className='mapping-empty';p.textContent='Sammle zuerst Bilder. Danach kannst du hier einzelnen Klassen eine micro:bit-Zahl zuordnen.';container.append(p);return}
  occupied.forEach(({c,i})=>{
   const row=document.createElement('div');row.className='symbol-row';const matrix=document.createElement('div');matrix.className='led-matrix symbol-mini';matrix.setAttribute('aria-hidden','true');renderNumberLED(matrix,getClassSymbol(i));
-  const label=document.createElement('label');const name=document.createElement('span');name.textContent=c.name;const select=document.createElement('select');select.setAttribute('aria-label','micro:bit-Zahl für '+c.name);
+  const label=document.createElement('label');const name=document.createElement('span');name.textContent=classLabel(i);const select=document.createElement('select');select.setAttribute('aria-label','micro:bit-Zahl für '+classLabel(i));
   const none=document.createElement('option');none.value='';none.textContent='Keine Aktion';select.append(none);
   for(const [value,number] of Object.entries(actionNumbers)){const option=document.createElement('option');option.value=value;option.textContent='Zahl '+number+' · '+symbolLabels[value];select.append(option)}
   select.value=getClassSymbol(i)||'';select.onchange=()=>setClassSymbol(i,select.value);label.append(name,select);row.classList.toggle('unassigned',!getClassSymbol(i));row.append(matrix,label);container.append(row)

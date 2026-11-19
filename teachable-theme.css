@@ -362,3 +362,62 @@ dialog a{color:#7535bd}
   .photo-review-head button{min-height:36px;font-size:11px}
   .photo-tile{width:52px;height:52px}
 }
+
+/* Per-class micro:bit number mapping — deliberately visible in the collection workflow */
+.class-number-choice{
+  display:grid;
+  grid-template-columns:58px minmax(0,1fr);
+  align-items:center;
+  gap:12px;
+  padding:12px 14px;
+  border:2px solid #d7c5ef;
+  border-radius:14px;
+  background:linear-gradient(135deg,#f7f1ff,#efe5ff);
+}
+.class-number-preview.led-matrix{
+  width:54px;
+  height:54px;
+  padding:7px;
+  gap:2px;
+  background:#32215b;
+  border:2px solid #6f45a1;
+  border-radius:10px;
+}
+.class-number-choice label{
+  display:grid;
+  grid-template-columns:minmax(130px,.8fr) minmax(200px,1.2fr);
+  grid-template-areas:"caption caption" "text select";
+  align-items:center;
+  gap:4px 12px;
+  min-width:0;
+}
+.class-number-choice label>span{
+  grid-area:caption;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.7px;
+  text-transform:uppercase;
+  color:#76519d;
+}
+.class-number-choice label>strong{
+  grid-area:text;
+  font-size:13px;
+  color:#4a3767;
+}
+.class-number-choice select{
+  grid-area:select;
+  min-height:44px;
+  width:100%;
+  border:2px solid #b99bdd;
+  border-radius:10px;
+  background:#fff;
+  color:#3c255e;
+  padding:8px 10px;
+  font-size:14px;
+  font-weight:850;
+}
+@media(max-width:560px){
+  .class-number-choice{grid-template-columns:50px minmax(0,1fr);padding:10px}
+  .class-number-preview.led-matrix{width:46px;height:46px;padding:6px}
+  .class-number-choice label{grid-template-columns:1fr;grid-template-areas:"caption" "text" "select"}
+}

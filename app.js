@@ -338,7 +338,9 @@ function updateClassTabs(){
 }
 function showPane(pane,persist=true){
  const ids={collect:'collectPane',train:'trainingSection',live:'liveSection',map:'mappingSection',connect:'connectionSection'},buttons={collect:'stepCollect',train:'stepTrain',live:'stepLive',map:'stepMap',connect:'stepConnect'};
- if(!ids[pane])return;currentPane=pane;Object.entries(ids).forEach(([key,id])=>{$(id).hidden=key!==pane;$(buttons[key]).classList.toggle('active',key===pane);$(buttons[key]).setAttribute('aria-pressed',String(key===pane))});if(persist)scheduleSave();if(pane==='map')renderBitMappings();if(pane==='live'&&trained&&testTarget<0)nextTestChallenge();
+ if(!ids[pane])return;currentPane=pane;Object.entries(ids).forEach(([key,id])=>{$(id).hidden=key!==pane;$(buttons[key]).classList.toggle('active',key===pane);$(buttons[key]).setAttribute('aria-pressed',String(key===pane))});
+ const showBitVisual=pane==='map'||pane==='connect';$('cameraPanel').hidden=showBitVisual;$('microbitVisual').hidden=!showBitVisual;
+ if(persist)scheduleSave();if(pane==='map')renderBitMappings();if(pane==='live'&&trained&&testTarget<0)nextTestChallenge();
 }
 function scheduleSave(delay=120){if(restoring)return;projectDirty=true;savePending=true;$('saveStatus').textContent='Wird lokal gespeichert …';clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,delay)}
 function saveNow(changed=false){

@@ -32,11 +32,17 @@ function renderCards(){
  selectedClass=Math.max(0,Math.min(selectedClass,classes.length-1));
  classes.forEach((c,i)=>{
   const card=document.createElement('article');card.className='classcard';card.style.setProperty('--color',classColor(i));card.style.setProperty('--class-text',classTextColor(i));card.id='class'+i;
-  card.innerHTML='<div class="card-top"><span class="classnumber">'+(i+1)+'</span><input class="class-name" maxlength="60" aria-label="Name Klasse '+(i+1)+'"><button class="plain clear" aria-label="Bilder von Klasse '+(i+1)+' löschen">Bilder löschen</button></div><div class="card-body"><div class="thumbnail"></div><div class="sampleinfo"><div class="count"><span></span><small>Startziel</small></div><div class="track"><i></i></div><div class="remaining"></div><div class="diversity" data-level="empty"><span>Bildvielfalt</span><strong>noch zu wenige Bilder</strong></div></div><div class="capturebuttons"><button class="record" disabled>● Aufnehmen</button><button class="series" disabled>Serie</button></div></div><div class="photo-review"><div class="photo-review-head"><div><strong>Lernbilder</strong><span>Einzelne Bilder mit × löschen</span></div><button class="gallery-open secondary">Bilder ansehen</button></div><div class="photo-strip" aria-label="Zuletzt aufgenommene Bilder"></div></div>';
+  card.innerHTML='<div class="card-top"><span class="classnumber">'+(i+1)+'</span><input class="class-name" maxlength="60" aria-label="Name Klasse '+(i+1)+'"><button class="plain clear" aria-label="Bilder von Klasse '+(i+1)+' löschen">Bilder löschen</button></div><div class="card-body"><div class="thumbnail"></div><div class="sampleinfo"><div class="count"><span></span><small>Startziel</small></div><div class="track"><i></i></div><div class="remaining"></div><div class="diversity" data-level="empty"><span>Bildvielfalt</span><strong>noch zu wenige Bilder</strong></div></div><div class="capturebuttons"><button class="record" disabled>● Aufnehmen</button><button class="series" disabled>Serie</button></div></div><div class="photo-review"><div class="photo-review-head"><div><strong>Lernbilder</strong><span>Einzelne Bilder mit × löschen</span></div><button class="gallery-open secondary">Bilder ansehen</button></div><div class="photo-strip" aria-label="Zuletzt aufgenommene Bilder"></div></div><div class="class-number-choice"><div class="led-matrix class-number-preview" aria-hidden="true"></div><label><span>micro:bit-Zahl</span><strong>Bei Erkennung dieser Klasse senden:</strong><select class="class-number-select" aria-label="micro:bit-Zahl für Klasse '+(i+1)+'"></select></label></div>';
   const nameWrap=document.createElement('label');nameWrap.className='name-field';const nameCaption=document.createElement('span');nameCaption.textContent='Name der Klasse';const nameInput=card.querySelector('.class-name');nameInput.before(nameWrap);nameWrap.append(nameCaption,nameInput);nameInput.placeholder='Eigenen Namen eingeben';nameInput.autocomplete='off';
   const name=card.querySelector('.class-name');name.value=c.name;name.addEventListener('input',()=>{c.name=name.value;renderBars();updateControls();updateClassTabs();scheduleSave()});name.addEventListener('blur',()=>{c.name=name.value.trim();name.value=c.name;renderBars();updateControls();updateClassTabs();scheduleSave()});
   card.querySelector('.clear').onclick=()=>deleteImages(i,c.samples.map((_,j)=>j));
   card.querySelector('.gallery-open').onclick=()=>openGallery(i);
+  const numberSelect=card.querySelector('.class-number-select');
+  const noneOption=document.createElement('option');noneOption.value='';noneOption.textContent='Keine Aktion';numberSelect.append(noneOption);
+  Object.entries(actionNumbers).sort((a,b)=>a[1]-b[1]).forEach(([value,number])=>{const option=document.createElement('option');option.value=value;option.textContent='Zahl '+number;numberSelect.append(option)});
+  numberSelect.value=getClassSymbol(i)||'';
+  renderNumberLED(card.querySelector('.class-number-preview'),getClassSymbol(i));
+  numberSelect.onchange=()=>setClassSymbol(i,numberSelect.value);
   const rec=card.querySelector('.record');rec.addEventListener('pointerdown',e=>{e.preventDefault();rec.setPointerCapture(e.pointerId);startCapture(i,false)});
   ['pointerup','pointercancel','lostpointercapture'].forEach(event=>rec.addEventListener(event,()=>{if(recording?.i===i&&!recording.series)stopCapture()}));
   rec.addEventListener('keydown',e=>{if((e.code==='Space'||e.code==='Enter')&&!e.repeat){e.preventDefault();startCapture(i,false)}});rec.addEventListener('keyup',e=>{if(e.code==='Space'||e.code==='Enter')stopCapture()});
@@ -60,6 +66,7 @@ function updateCards(){
   card.querySelector('.gallery-open').disabled=restoring||training||!!recording||extracting||!n;card.querySelector('.gallery-open').textContent=n?'Bilder ansehen · '+n:'Bilder ansehen';
   renderPhotoStrip(i,card);
   card.querySelector('.class-name').disabled=training||restoring;
+  card.querySelector('.class-number-select').disabled=restoring||training;
  });
  $('totalCount').textContent=imageCount(total);
  const selected=classes[selectedClass];
@@ -407,7 +414,6 @@ function updateBitUI(){
  updateStepProgress();
 }
 function showBitView(view){bitView=view;document.querySelector('.bit-connect-view').hidden=view!=='connect';$('bitActionsView').hidden=view!=='actions';renderBitMappings();updateBitUI()}
-const symbolLabels={heart:'♥ Herz',smile:'☺ Lächeln',left:'← Pfeil links',right:'→ Pfeil rechts',up:'↑ Pfeil oben',down:'↓ Pfeil unten',check:'✓ Häkchen',cross:'× Kreuz',square:'□ Quadrat',off:'○ LEDs aus'};
 const actionNumbers=Object.fromEntries(Object.entries(MicrobitTransport.COMMAND_CODES).map(([name,number])=>[name.toLowerCase(),number]));
 function setClassSymbol(slot,symbol){
  const c=classes[slot];if(!c)return;const normalized=symbol&&Object.hasOwn(actionNumbers,symbol)?symbol:null;
@@ -416,12 +422,12 @@ function setClassSymbol(slot,symbol){
 }
 function renderBitMappings(){
  const container=$('bitMappings');container.replaceChildren();const occupied=classes.map((c,i)=>({c,i})).filter(({c})=>c.samples.length);
- if(!occupied.length){const p=document.createElement('p');p.className='mapping-empty';p.textContent='Sammle zuerst Bilder. Danach kannst du hier einzelnen Klassen eine micro:bit-Zahl zuordnen.';container.append(p);return}
+ if(!occupied.length){const p=document.createElement('p');p.className='mapping-empty';p.textContent='Du kannst die micro:bit-Zahl direkt bei jeder Klasse wählen. Hier erscheint später zusätzlich die Gesamtübersicht.';container.append(p);return}
  occupied.forEach(({c,i})=>{
   const row=document.createElement('div');row.className='symbol-row';const matrix=document.createElement('div');matrix.className='led-matrix symbol-mini';matrix.setAttribute('aria-hidden','true');renderNumberLED(matrix,getClassSymbol(i));
   const label=document.createElement('label');const name=document.createElement('span');name.textContent=classLabel(i);const select=document.createElement('select');select.setAttribute('aria-label','micro:bit-Zahl für '+classLabel(i));
   const none=document.createElement('option');none.value='';none.textContent='Keine Aktion';select.append(none);
-  for(const [value,number] of Object.entries(actionNumbers)){const option=document.createElement('option');option.value=value;option.textContent='Zahl '+number+' · '+symbolLabels[value];select.append(option)}
+  for(const [value,number] of Object.entries(actionNumbers).sort((a,b)=>a[1]-b[1])){const option=document.createElement('option');option.value=value;option.textContent='Zahl '+number;select.append(option)}
   select.value=getClassSymbol(i)||'';select.onchange=()=>setClassSymbol(i,select.value);label.append(name,select);row.classList.toggle('unassigned',!getClassSymbol(i));row.append(matrix,label);container.append(row)
  });
 }

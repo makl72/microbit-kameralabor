@@ -26,7 +26,7 @@ function renderCards(){
  selectedClass=Math.max(0,Math.min(selectedClass,classes.length-1));
  classes.forEach((c,i)=>{
   const card=document.createElement('article');card.className='classcard';card.style.setProperty('--color',classColor(i));card.style.setProperty('--class-text',classTextColor(i));card.id='class'+i;
-  card.innerHTML='<div class="card-top"><span class="classnumber">'+(i+1)+'</span><input class="class-name" maxlength="60" aria-label="Name Klasse '+(i+1)+'"><button class="plain clear" aria-label="Bilder von Klasse '+(i+1)+' löschen">Bilder löschen</button></div><div class="card-body"><div class="thumbnail"></div><div class="sampleinfo"><div class="count"><span></span><small>Startziel</small></div><div class="track"><i></i></div><div class="remaining"></div><div class="diversity" data-level="empty"><span>Bildvielfalt</span><strong>noch zu wenige Bilder</strong></div></div><div class="capturebuttons"><button class="record" disabled>● Aufnehmen</button><button class="series" disabled>Serie</button></div></div><div class="photo-review"><div class="photo-review-head"><strong>Letzte Lernbilder</strong><button class="gallery-open secondary">Alle ansehen</button></div><div class="photo-strip" aria-label="Zuletzt aufgenommene Bilder"></div></div>';
+  card.innerHTML='<div class="card-top"><span class="classnumber">'+(i+1)+'</span><input class="class-name" maxlength="60" aria-label="Name Klasse '+(i+1)+'"><button class="plain clear" aria-label="Bilder von Klasse '+(i+1)+' löschen">Bilder löschen</button></div><div class="card-body"><div class="thumbnail"></div><div class="sampleinfo"><div class="count"><span></span><small>Startziel</small></div><div class="track"><i></i></div><div class="remaining"></div><div class="diversity" data-level="empty"><span>Bildvielfalt</span><strong>noch zu wenige Bilder</strong></div></div><div class="capturebuttons"><button class="record" disabled>● Aufnehmen</button><button class="series" disabled>Serie</button></div></div><div class="photo-review"><div class="photo-review-head"><div><strong>Lernbilder</strong><span>Einzelne Bilder mit × löschen</span></div><button class="gallery-open secondary">Bilder ansehen</button></div><div class="photo-strip" aria-label="Zuletzt aufgenommene Bilder"></div></div>';
   const nameWrap=document.createElement('label');nameWrap.className='name-field';const nameCaption=document.createElement('span');nameCaption.textContent='Name der Klasse';const nameInput=card.querySelector('.class-name');nameInput.before(nameWrap);nameWrap.append(nameCaption,nameInput);nameInput.placeholder='Eigenen Namen eingeben';nameInput.autocomplete='off';
   const name=card.querySelector('.class-name');name.value=c.name;name.addEventListener('input',()=>{c.name=name.value;renderBars();updateControls();updateClassTabs();scheduleSave()});name.addEventListener('blur',()=>{c.name=name.value.trim()||'Klasse '+(i+1);name.value=c.name;renderBars();updateControls();updateClassTabs();scheduleSave()});
   card.querySelector('.clear').onclick=()=>deleteImages(i,c.samples.map((_,j)=>j));
@@ -51,7 +51,7 @@ function updateCards(){
   card.querySelector('.record').disabled=!stream||!base||training||cameraStarting||n>=MAX||!!recording&&!own;
   const series=card.querySelector('.series');series.disabled=!stream||!base||training||cameraStarting||!!recording&&!own||n>=MAX;series.textContent=own&&recording.series?'■ Ende':'Serie';
   card.querySelector('.clear').disabled=restoring||training||!!recording||extracting||!n;
-  card.querySelector('.gallery-open').disabled=restoring||training||!!recording||extracting||!n;card.querySelector('.gallery-open').textContent=n?'Alle '+imageCount(n)+' ansehen':'Alle ansehen';
+  card.querySelector('.gallery-open').disabled=restoring||training||!!recording||extracting||!n;card.querySelector('.gallery-open').textContent=n?'Bilder ansehen · '+n:'Bilder ansehen';
   renderPhotoStrip(i,card);
   card.querySelector('.class-name').disabled=training||restoring;
  });
@@ -76,7 +76,7 @@ function renderPhotoStrip(slot,card){
  for(let i=start;i<c.samples.length;i++){
   const tile=document.createElement('div');tile.className='photo-tile';const data=c.images?.[i];
   if(data){const image=new Image();image.src=data;image.alt='Bild '+(i+1);tile.append(image)}else{const missing=document.createElement('span');missing.textContent='#'+(i+1);tile.append(missing)}
-  const remove=document.createElement('button');remove.type='button';remove.className='photo-remove';remove.textContent='×';remove.setAttribute('aria-label','Bild '+(i+1)+' sofort löschen');remove.disabled=restoring||training||!!recording||extracting;remove.onclick=()=>deleteImages(slot,[i]);tile.append(remove);strip.append(tile)
+  const remove=document.createElement('button');remove.type='button';remove.className='photo-remove';remove.textContent='×';remove.setAttribute('aria-label','Bild '+(i+1)+' löschen');remove.title='Dieses Bild löschen';remove.disabled=restoring||training||!!recording||extracting;remove.onclick=()=>deleteImages(slot,[i]);tile.append(remove);strip.append(tile)
  }
 }
 function showTrainMessage(message,error=false){trainMessage=message;trainError=error;$('trainMessage').textContent=message;$('trainMessage').hidden=!message;$('trainMessage').classList.toggle('error',error)}

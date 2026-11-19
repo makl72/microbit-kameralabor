@@ -68,9 +68,12 @@ function updateCards(){
   const tip=$('tipText');
   if(!selected.samples.length)tip.innerHTML='<strong>Genau diesen Ausschnitt lernt die KI.</strong> Sammle dieselbe Klasse aus verschiedenen Winkeln, Abständen und Hintergründen.';
   else if(selected.samples.length<MIN)tip.innerHTML='<strong>Noch ein paar Beispiele.</strong> Für das Training fehlen in dieser Klasse noch '+(MIN-selected.samples.length)+' Bilder.';
-  else if(d.level==='low')tip.innerHTML='<strong>Mehr Vielfalt nötig.</strong> Viele Bilder sind sehr ähnlich. Ändere Winkel, Abstand oder Hintergrund.';
-  else if(d.level==='medium')tip.innerHTML='<strong>Schon besser.</strong> Ergänze noch deutlich andere Ansichten, statt nur mehr vom Gleichen.';
-  else tip.innerHTML='<strong>Gute Bildvielfalt.</strong> Teste später mit neuen Ansichten, die nicht in deinen Trainingsbildern vorkommen.';
+  else if(d.level==='very-low')tip.innerHTML='<strong>Sehr wenig Vielfalt.</strong> Die Bilder sind fast gleich. Ändere deutlich Winkel, Abstand und Hintergrund.';
+  else if(d.level==='low')tip.innerHTML='<strong>Noch wenig Vielfalt.</strong> Zeige dieselbe Klasse aus deutlich anderen Ansichten.';
+  else if(d.level==='fair')tip.innerHTML='<strong>Etwas Vielfalt vorhanden.</strong> Ergänze jetzt neue Perspektiven und Abstände.';
+  else if(d.level==='good')tip.innerHTML='<strong>Gut gemischt.</strong> Ergänze noch ein paar ungewohnte Ansichten oder Hintergründe.';
+  else if(d.level==='very-good')tip.innerHTML='<strong>Sehr gute Bildvielfalt.</strong> Das Training ist abwechslungsreich. Teste später mit wirklich neuen Ansichten.';
+  else tip.innerHTML='<strong>Sehr vielfältig.</strong> Die Klasse enthält viele unterschiedliche Ansichten. Jetzt ist ein Praxistest besonders sinnvoll.';
  }
  $('removeClassBtn').disabled=restoring||training||!!recording||extracting||classes.length<=1;
  $('addClassBtn').disabled=restoring||training||!!recording||extracting;

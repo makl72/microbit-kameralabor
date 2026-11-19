@@ -1,16 +1,19 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const {TARGET,MIN,MAX}=CameraLabCore;
-const colors=['#ffc43d','#4285e9','#42c83d','#f2558c','#9a4de0'];
-let classes=[['Offene Hand','STOPP'],['Faust','VORWAERTS'],['Zeichen links','LINKS'],['Zeichen rechts','RECHTS'],['Hintergrund / keine Geste','STOPP']].map(([name,command])=>({name,command,samples:[],images:[],thumb:''}));
+const classPalette=['#f3b51b','#3f82e5','#36b936','#ed4f86','#9345d7','#ef6c35','#19a6a6','#6f73d9','#d95db0','#5a9b32'];
+function classColor(i){if(i<classPalette.length)return classPalette[i];const hue=(17+i*47)%360;return 'hsl('+hue+' 68% 50%)'}
+function classTextColor(i){if(i===0)return '#33270a';const hue=(17+i*47)%360;return i>=classPalette.length&&hue>35&&hue<78?'#322600':'#fff'}
+function makeClass(i){return {name:'Klasse '+(i+1),command:'STOPP',samples:[],images:[],thumb:'',symbol:null}}
+let classes=[makeClass(0),makeClass(1)];
 let stream=null,front=false,base=null,basePromise=null,head=null,trained=false,training=false,predicting=false,recording=null,extracting=false,cameraStarting=false,revision=0,trainMessage='',trainError=false;
 let currentCommand='STOPP',lastInference=0,lastLogged='',toastTimer;
 let captureSerial=0,predictSerial=0,confidence=0.85;
 let cameraWatchTimer=null,lastVideoTime=0,lastVideoProgress=0,lastCameraRecovery=0;
-let trainingBackend=null,activeIndices=[],oneClass=null,savedModel=null,selectedClass=0,currentPane='collect',restoring=true,saveTimer,savePending=false,storageHealthy=true,saveChain=Promise.resolve();
+let trainingBackend=null,activeIndices=[],oneClass=null,savedModel=null,selectedClass=0,currentPane='collect',restoring=true,saveTimer,savePending=false,storageHealthy=true,saveChain=Promise.resolve(),testTarget=-1,hasStableRecognition=false;
 let projectDirty=false,storageVersion=null;
 let projectName='Mein Experiment',undoDeletion=null,gallerySelection=new Set(),gallerySlot=0;
-let bitLink=null,bitMode=window.webkit?.messageHandlers?.microbit?'native':/iPad|iPhone|iPod/.test(navigator.userAgent)||(!navigator.serial&&navigator.bluetooth)?'ble':'usb',bitConnecting=false,bitTesting=false,bitReady=false,bitView='connect',currentClass=-1,currentSymbol='off',sending=false,pendingSymbol=false;
+let bitLink=null,bitMode=window.webkit?.messageHandlers?.microbit?'native':/iPad|iPhone|iPod/.test(navigator.userAgent)||(!navigator.serial&&navigator.bluetooth)?'ble':'usb',bitConnecting=false,bitTesting=false,bitReady=false,bitView='connect',currentClass=-1,currentSymbol=null,sending=false,pendingSymbol=false;
 const gate=CameraLabCore.createGate();
 const canvas=document.createElement('canvas');canvas.width=canvas.height=224;
 const ctx=canvas.getContext('2d',{willReadFrequently:true});
@@ -19,41 +22,53 @@ function toast(message){$('toast').textContent=message;$('toast').hidden=false;c
 function imageCount(n){return n+' '+(n===1?'Bild':'Bilder')}
 function renderCards(){
  const cards=$('classCards');cards.replaceChildren();
+ if(!classes.length)classes=[makeClass(0)];
+ selectedClass=Math.max(0,Math.min(selectedClass,classes.length-1));
  classes.forEach((c,i)=>{
-  const card=document.createElement('article');card.className='classcard';card.style.setProperty('--color',colors[i]);card.id='class'+i;
-  card.innerHTML='<div class="card-top"><span class="classnumber">'+(i+1)+'</span><input class="class-name" maxlength="60" aria-label="Name Klasse '+(i+1)+'"><button class="plain clear" aria-label="Bilder von Klasse '+(i+1)+' löschen">Alle löschen</button></div><div class="card-body"><div class="thumbnail"></div><div class="sampleinfo"><div class="count"><span></span><small>Startziel</small></div><div class="track"><i></i></div><div class="remaining"></div></div><div class="capturebuttons"><button class="record" disabled>● Aufnehmen</button><button class="series" disabled>Serie</button></div></div><div class="photo-review"><div class="photo-review-head"><strong>Deine Bilder · sofort löschbar</strong><button class="gallery-open secondary">Alle ansehen und löschen</button></div><div class="photo-strip" aria-label="Zuletzt aufgenommene Bilder"></div></div><div class="action-choice"><div class="led-matrix class-action-preview" aria-hidden="true"></div><label><strong>Wenn diese Klasse erkannt wird:</strong><select class="class-symbol" aria-label="micro:bit-Aktion für Klasse '+(i+1)+'"></select></label></div><label class="mapping">→ Befehl <input maxlength="18" aria-label="Befehl Klasse '+(i+1)+'" spellcheck="false"></label>';
+  const card=document.createElement('article');card.className='classcard';card.style.setProperty('--color',classColor(i));card.style.setProperty('--class-text',classTextColor(i));card.id='class'+i;
+  card.innerHTML='<div class="card-top"><span class="classnumber">'+(i+1)+'</span><input class="class-name" maxlength="60" aria-label="Name Klasse '+(i+1)+'"><button class="plain clear" aria-label="Bilder von Klasse '+(i+1)+' löschen">Bilder löschen</button></div><div class="card-body"><div class="thumbnail"></div><div class="sampleinfo"><div class="count"><span></span><small>Startziel</small></div><div class="track"><i></i></div><div class="remaining"></div><div class="diversity" data-level="empty"><span>Bildvielfalt</span><strong>noch zu wenige Bilder</strong></div></div><div class="capturebuttons"><button class="record" disabled>● Aufnehmen</button><button class="series" disabled>Serie</button></div></div><div class="photo-review"><div class="photo-review-head"><strong>Letzte Lernbilder</strong><button class="gallery-open secondary">Alle ansehen</button></div><div class="photo-strip" aria-label="Zuletzt aufgenommene Bilder"></div></div>';
   const nameWrap=document.createElement('label');nameWrap.className='name-field';const nameCaption=document.createElement('span');nameCaption.textContent='Name der Klasse';const nameInput=card.querySelector('.class-name');nameInput.before(nameWrap);nameWrap.append(nameCaption,nameInput);nameInput.placeholder='Eigenen Namen eingeben';nameInput.autocomplete='off';
   const name=card.querySelector('.class-name');name.value=c.name;name.addEventListener('input',()=>{c.name=name.value;renderBars();updateControls();updateClassTabs();scheduleSave()});name.addEventListener('blur',()=>{c.name=name.value.trim()||'Klasse '+(i+1);name.value=c.name;renderBars();updateControls();updateClassTabs();scheduleSave()});
-  const cmd=card.querySelector('.mapping input');cmd.value=c.command;cmd.addEventListener('change',()=>{const s=cmd.value.trim().toUpperCase();if(!CameraLabCore.command(s)){cmd.value=c.command;toast('Befehle: 1–18 Zeichen, nur A–Z, 0–9 und Unterstrich.');return}stopPrediction();c.command=s;cmd.value=s;scheduleSave();toast('Befehl geändert. Erkennung bei Bedarf neu starten.')});
   card.querySelector('.clear').onclick=()=>deleteImages(i,c.samples.map((_,j)=>j));
   card.querySelector('.gallery-open').onclick=()=>openGallery(i);
-  const symbolSelect=card.querySelector('.class-symbol');for(const [value,number] of Object.entries(actionNumbers)){const option=document.createElement('option');option.value=value;option.textContent=number;option.setAttribute('aria-label',number+' – '+symbolLabels[value]);symbolSelect.append(option)}
-  symbolSelect.value=getClassSymbol(i);renderNumberLED(card.querySelector('.class-action-preview'),getClassSymbol(i));
-  symbolSelect.onchange=()=>setClassSymbol(i,symbolSelect.value);
   const rec=card.querySelector('.record');rec.addEventListener('pointerdown',e=>{e.preventDefault();rec.setPointerCapture(e.pointerId);startCapture(i,false)});
   ['pointerup','pointercancel','lostpointercapture'].forEach(event=>rec.addEventListener(event,()=>{if(recording?.i===i&&!recording.series)stopCapture()}));
   rec.addEventListener('keydown',e=>{if((e.code==='Space'||e.code==='Enter')&&!e.repeat){e.preventDefault();startCapture(i,false)}});rec.addEventListener('keyup',e=>{if(e.code==='Space'||e.code==='Enter')stopCapture()});
   card.querySelector('.series').addEventListener('click',()=>{if(recording?.i===i)stopCapture();else startCapture(i,true)});
   card.hidden=i!==selectedClass;cards.append(card);
- });updateCards();renderBars();updateClassTabs();
+ });
+ updateCards();renderBars();updateClassTabs();
 }
 function updateCards(){
- let total=0;
+ let total=0,selectedDiversity=null;
  classes.forEach((c,i)=>{
-  total+=c.samples.length;const card=$('class'+i),n=c.samples.length;
+  total+=c.samples.length;const card=$('class'+i);if(!card)return;const n=c.samples.length;
   card.querySelector('.count span').textContent=n+' / '+TARGET+' Bilder';card.querySelector('.track i').style.width=Math.min(100,n/TARGET*100)+'%';
-  card.querySelector('.remaining').textContent=n>=TARGET?'Startziel erreicht · neue Ansichten ergänzbar':'Noch '+imageCount(TARGET-n)+' bis zum Startziel';
+  card.querySelector('.remaining').textContent=n>=TARGET?'Startziel erreicht · neue Ansichten bleiben hilfreich':'Noch '+imageCount(TARGET-n)+' bis zum Startziel';
+  const diversity=CameraLabCore.sampleDiversity(c.samples),div=card.querySelector('.diversity');div.dataset.level=diversity.level;div.querySelector('strong').textContent=diversity.label;if(i===selectedClass)selectedDiversity=diversity;
   const thumb=card.querySelector('.thumbnail');thumb.replaceChildren();if(c.thumb){const im=new Image();im.src=c.thumb;im.alt='Letzte Aufnahme: '+c.name;thumb.append(im)}else thumb.textContent='+';
   const own=recording?.i===i;card.classList.toggle('collecting',own);
   card.querySelector('.record').disabled=!stream||!base||training||cameraStarting||n>=MAX||!!recording&&!own;
   const series=card.querySelector('.series');series.disabled=!stream||!base||training||cameraStarting||!!recording&&!own||n>=MAX;series.textContent=own&&recording.series?'■ Ende':'Serie';
   card.querySelector('.clear').disabled=restoring||training||!!recording||extracting||!n;
-  card.querySelector('.gallery-open').disabled=restoring||training||!!recording||extracting||!n;card.querySelector('.gallery-open').textContent='Alle '+imageCount(n)+' ansehen und löschen';
-  card.querySelector('.class-symbol').disabled=restoring||training;
+  card.querySelector('.gallery-open').disabled=restoring||training||!!recording||extracting||!n;card.querySelector('.gallery-open').textContent=n?'Alle '+imageCount(n)+' ansehen':'Alle ansehen';
   renderPhotoStrip(i,card);
-  card.querySelector('.class-name').disabled=training||restoring;card.querySelector('.mapping input').disabled=training||!!recording;
+  card.querySelector('.class-name').disabled=training||restoring;
  });
- $('totalCount').textContent=imageCount(total);updateControls();updateClassTabs();
+ $('totalCount').textContent=imageCount(total);
+ const selected=classes[selectedClass];
+ if(selected){
+  const d=selectedDiversity||CameraLabCore.sampleDiversity(selected.samples);
+  const tip=$('tipText');
+  if(!selected.samples.length)tip.innerHTML='<strong>Genau diesen Ausschnitt lernt die KI.</strong> Sammle dieselbe Klasse aus verschiedenen Winkeln, Abständen und Hintergründen.';
+  else if(selected.samples.length<MIN)tip.innerHTML='<strong>Noch ein paar Beispiele.</strong> Für das Training fehlen in dieser Klasse noch '+(MIN-selected.samples.length)+' Bilder.';
+  else if(d.level==='low')tip.innerHTML='<strong>Mehr Vielfalt nötig.</strong> Viele Bilder sind sehr ähnlich. Ändere Winkel, Abstand oder Hintergrund.';
+  else if(d.level==='medium')tip.innerHTML='<strong>Schon besser.</strong> Ergänze noch deutlich andere Ansichten, statt nur mehr vom Gleichen.';
+  else tip.innerHTML='<strong>Gute Bildvielfalt.</strong> Teste später mit neuen Ansichten, die nicht in deinen Trainingsbildern vorkommen.';
+ }
+ $('removeClassBtn').disabled=restoring||training||!!recording||extracting||classes.length<=1;
+ $('addClassBtn').disabled=restoring||training||!!recording||extracting;
+ updateControls();updateClassTabs();
 }
 function renderPhotoStrip(slot,card){
  const strip=card.querySelector('.photo-strip'),c=classes[slot],start=Math.max(0,c.samples.length-8);strip.replaceChildren();
@@ -76,36 +91,60 @@ function updateControls(){
  $('singleHint').hidden=activeIndices.length!==1;
  $('singleHint').textContent='Eine Klasse: Ähnlichkeit mit deinen Beispielen. Mit einer Hintergrundklasse wird die Unterscheidung zuverlässiger.';
  $('trainBtn').textContent=training?'KI lernt …':trained?'Erneut trainieren':ready?'KI trainieren':'Trainingsbereitschaft prüfen';
- $('trainHint').textContent=training?'Die belegten Klassen werden auf deinem Gerät gelernt.':trained?'Trainiert. Teste jetzt in der Live-Ansicht.':ready?status.active.length+' belegte '+(status.active.length===1?'Klasse ist':'Klassen sind')+' bereit. Leere Klassen bleiben unbenutzt.':status.active.length?'Für jede belegte Klasse sind mindestens 10 Bilder nötig. Leere Klassen bleiben frei.':'Wähle eine Klasse und sammle mindestens 10 Bilder. Du kannst 1 bis 5 Klassen trainieren.';
+ $('trainHint').textContent=training?'Die belegten Klassen werden auf deinem Gerät gelernt.':trained?'Trainiert. Teste jetzt in der Live-Ansicht.':ready?status.active.length+' belegte '+(status.active.length===1?'Klasse ist':'Klassen sind')+' bereit. Leere Klassen bleiben unbenutzt.':status.active.length?'Für jede belegte Klasse sind mindestens 10 Bilder nötig. Leere Klassen bleiben frei.':'Wähle eine Klasse und sammle mindestens 10 Bilder. Du kannst Klassen frei hinzufügen oder löschen.';
  const list=$('trainReadiness');list.replaceChildren();classes.forEach((c,i)=>{const row=document.createElement('div');row.className='readiness-row';const label=document.createElement('span');label.textContent=c.name||'Klasse '+(i+1);const count=document.createElement('strong');count.textContent=!c.samples.length?'Leer · wird übersprungen':c.samples.length>=MIN?'✓ '+c.samples.length+' Bilder':c.samples.length+' / '+MIN+' · noch '+(MIN-c.samples.length);count.className=c.samples.length>=MIN?'ready':c.samples.length?'missing':'';row.append(label,count);list.append(row)});
  list.hidden=training||trained;
  $('cameraBtn').disabled=restoring||cameraStarting||training;$('switchCam').disabled=!stream||training||!!recording||cameraStarting;$('restartCam').disabled=!stream||training||cameraStarting;$('stopCam').disabled=!stream||training||cameraStarting;
  $('newProjectBtn').disabled=restoring||training||extracting;$('projectName').disabled=restoring||training;
  $('quickSaveBtn').disabled=restoring||training||!!recording||extracting;
  $('loadBtn').disabled=restoring||training||!!recording||extracting;$('saveBtn').disabled=restoring||training||!!recording||extracting;
+ updateStepProgress();
+}
+function updateStepProgress(){
+ const ready=CameraLabCore.trainingReadiness(classes).ready;
+ [['stepCollect',ready],['stepTrain',trained],['stepLive',hasStableRecognition],['stepConnect',bitReady]].forEach(([id,done])=>$(id)?.classList.toggle('done',!!done));
 }
 
 function renderBars(probs){
  const rows=$('predictionBars');rows.replaceChildren();
  const active=classes.map((c,i)=>({c,i})).filter(({c})=>c.samples.length);
  rows.dataset.classCount=String(active.length);
- const best=probs&&active.length?active.reduce((a,b)=>(probs[b.i]||0)>(probs[a.i]||0)?b:a,active[0]).i:-1;
- active.forEach(({c,i})=>{
+ const ranked=[...active];if(probs)ranked.sort((a,b)=>(probs[b.i]||0)-(probs[a.i]||0));
+ ranked.forEach(({c,i},rank)=>{
   const score=probs?Math.max(0,Math.min(1,probs[i]||0)):0;
-  const row=document.createElement('div');row.className='predrow prediction-card'+(i===best?' is-leading':'');row.style.setProperty('--class-color',colors[i]);
-  const top=document.createElement('div');top.className='prediction-top';
+  const row=document.createElement('div');row.className='predrow prediction-card'+(rank===0&&probs?' is-leading':'');row.style.setProperty('--class-color',classColor(i));row.style.setProperty('--class-text',classTextColor(i));
   const identity=document.createElement('div');identity.className='prediction-identity';
   const dot=document.createElement('span');dot.className='prediction-dot';dot.textContent=i+1;
-  const name=document.createElement('strong');name.textContent=c.name;
-  identity.append(dot,name);
+  const name=document.createElement('strong');name.textContent=c.name;identity.append(dot,name);
   const value=document.createElement('b');value.className='prediction-value';value.textContent=probs?Math.round(score*100)+' %':'—';
-  top.append(identity,value);
-  const track=document.createElement('div');track.className='track prediction-track';const bar=document.createElement('i');bar.style.background=colors[i];bar.style.width=probs?score*100+'%':'0%';track.append(bar);
-  const caption=document.createElement('small');caption.className='prediction-caption';caption.textContent=i===best&&probs?'höchste Übereinstimmung':'';
-  row.append(top,track,caption);rows.append(row);
- })
+  const track=document.createElement('div');track.className='track prediction-track';const bar=document.createElement('i');bar.style.background=classColor(i);bar.style.width=probs?score*100+'%':'0%';track.append(bar);
+  row.append(identity,value,track);rows.append(row);
+ });
 }
-function invalidate(){savedModel=null;oneClass=null;activeIndices=[];showTrainMessage('');revision++;stopPrediction();trained=false;if(head){head.dispose();head=null}$('resultBadge').textContent='Neu trainieren';$('resultBadge').classList.remove('recognized');$('resultTitle').textContent='Was sieht deine KI?';renderBars();updateControls()}
+function updateRecognitionHero(probs,result,best){
+ const hero=$('recognitionHero');if(!hero)return;
+ if(!probs||best<0){hero.dataset.state='idle';$('heroState').textContent='Bereit';$('heroName').textContent='Noch keine Erkennung';$('heroConfidence').textContent='—';$('heroHint').textContent='Starte die Erkennung und zeige etwas Neues vor die Kamera.';return}
+ const high=Math.max(...probs),stable=result?.index>=0,index=stable?result.index:best;
+ hero.dataset.state=stable?'recognized':high>=confidence?'holding':'uncertain';hero.style.setProperty('--hero-color',classColor(index));hero.style.setProperty('--hero-text',classTextColor(index));
+ $('heroState').textContent=stable?'✓ STABIL ERKANNT':high>=confidence?'HALTE NOCH KURZ STILL':'NOCH UNSICHER';
+ $('heroName').textContent=classes[index]?.name||'—';$('heroConfidence').textContent=Math.round(high*100)+' %';
+ $('heroHint').textContent=stable?'Diese Klasse ist seit mindestens 0,6 Sekunden stabil.':high>=confidence?'Die Klasse führt deutlich, muss aber noch stabil bleiben.':'Zeige das Objekt oder Zeichen deutlicher und verändere bei Bedarf den Abstand.';
+}
+function nextTestChallenge(){
+ if(!trained||!activeIndices.length){$('testChallenge').hidden=true;testTarget=-1;return}
+ $('testChallenge').hidden=false;
+ let choices=activeIndices.filter(i=>i!==testTarget);if(!choices.length)choices=activeIndices;
+ testTarget=choices[Math.floor(Math.random()*choices.length)];
+ $('challengeText').textContent='Zeige jetzt: '+classes[testTarget].name;
+ $('challengeStatus').textContent='Nutze eine neue Ansicht – nicht eines deiner Trainingsbilder.';
+ $('testChallenge').classList.remove('success','miss');
+}
+function checkTestChallenge(index){
+ if(testTarget<0||index<0)return;
+ if(index===testTarget){$('challengeStatus').textContent='✓ Richtig erkannt. Probiere danach eine neue Aufgabe.';$('testChallenge').classList.add('success');$('testChallenge').classList.remove('miss')}
+ else{$('challengeStatus').textContent='Erkannt wurde „'+classes[index].name+'“. Ändere Ansicht oder ergänze später gezielt Trainingsbilder.';$('testChallenge').classList.add('miss');$('testChallenge').classList.remove('success')}
+}
+function invalidate(){savedModel=null;oneClass=null;activeIndices=[];showTrainMessage('');revision++;stopPrediction();trained=false;testTarget=-1;hasStableRecognition=false;if(head){head.dispose();head=null}$('resultBadge').textContent='Neu trainieren';$('resultBadge').classList.remove('recognized');$('resultTitle').textContent='Teste deine KI';renderBars();updateRecognitionHero();$('testChallenge').hidden=true;updateControls()}
 async function loadBase(){
  if(base)return base;
  if(!basePromise)basePromise=(async()=>{try{
@@ -186,7 +225,7 @@ async function train(){
    await head.fit(xs,ys,{epochs:30,batchSize:Math.min(16,rows.length),shuffle:true,yieldEvery:'batch',callbacks:{onEpochEnd:async epoch=>{$('epochProgress').value=epoch+1;$('epochLabel').textContent='Lernrunde '+(epoch+1)+' / 30';await tf.nextFrame()}}});
    await head.save(tf.io.withSaveHandler(async a=>{savedModel={kind:'multi',activeIndices:[...activeIndices],artifacts:{modelTopology:a.modelTopology,weightSpecs:a.weightSpecs,weightData:a.weightData}};return {modelArtifactsInfo:tf.io.getModelArtifactsInfoForJSON(a)}}));
   }
-  trained=true;showTrainMessage('✓ Training abgeschlossen. Öffne jetzt die Live-Erkennung.');$('resultBadge').textContent='Bereit zum Testen';$('resultTitle').textContent=activeIndices.length===1?'Ähnlichkeit prüfen':'Teste deine Klassen';await saveNow(true);toast(storageHealthy?'Training abgeschlossen und lokal gesichert.':'Training abgeschlossen. Bitte das Projekt exportieren.');
+  trained=true;testTarget=-1;hasStableRecognition=false;showTrainMessage('✓ Training abgeschlossen. Teste jetzt bewusst mit neuen Ansichten.');$('resultBadge').textContent='Bereit zum Testen';$('resultTitle').textContent='Teste deine KI';updateRecognitionHero();await saveNow(true);toast(storageHealthy?'Training abgeschlossen und lokal gesichert.':'Training abgeschlossen. Bitte das Projekt exportieren.');
  }catch(e){if(head){head.dispose();head=null}savedModel=null;oneClass=null;trained=false;showTrainMessage('Training fehlgeschlagen: '+e.message+' · Du kannst es erneut versuchen.',true);$('resultBadge').textContent='Training fehlgeschlagen'}
  finally{xs?.dispose();ys?.dispose();if(trainingBackend&&tf.getBackend()!==trainingBackend){try{await tf.setBackend(trainingBackend);await tf.ready()}catch(e){$('modelStatus').textContent='Kompatibilitätsmodus (CPU) aktiv'}}trainingBackend=null;training=false;$('trainingProgress').hidden=true;updateCards()}
 }
@@ -195,19 +234,20 @@ async function predictLoop(){
  const myRevision=revision,mySerial=predictSerial;
  while(predicting&&trained&&stream&&myRevision===revision&&mySerial===predictSerial&&!document.hidden){
   try{const row=await features();if(!predicting||myRevision!==revision||mySerial!==predictSerial)break;
-   let probs;if(oneClass){probs=CameraLabCore.mapProbabilities([CameraLabCore.singleScore(row,oneClass)],activeIndices)}else{const output=tf.tidy(()=>head.predict(tf.tensor2d([row])));try{probs=CameraLabCore.mapProbabilities(Array.from(await output.data()),activeIndices)}finally{output.dispose()}}
-   if(!predicting||myRevision!==revision||mySerial!==predictSerial)break;lastInference=performance.now();renderBars(probs);
-   const result=gate.update(probs,confidence,lastInference);const best=probs.indexOf(Math.max(...probs));
-   const high=Math.max(...probs);$('resultTitle').textContent=result.index<0?(oneClass?'Noch keine sichere Übereinstimmung':'Ich prüfe …'):'Ich sehe: '+classes[best].name;$('resultBadge').textContent=Math.round(high*100)+' %';$('resultBadge').classList.toggle('recognized',result.index>=0);
+   let probs;if(oneClass){probs=CameraLabCore.mapProbabilities([CameraLabCore.singleScore(row,oneClass)],activeIndices,classes.length)}else{const output=tf.tidy(()=>head.predict(tf.tensor2d([row])));try{probs=CameraLabCore.mapProbabilities(Array.from(await output.data()),activeIndices,classes.length)}finally{output.dispose()}}
+   if(!predicting||myRevision!==revision||mySerial!==predictSerial)break;lastInference=performance.now();
+   const result=gate.update(probs,confidence,lastInference);const best=probs.indexOf(Math.max(...probs)),high=Math.max(...probs);renderBars(probs);updateRecognitionHero(probs,result,best);
+   $('resultTitle').textContent=result.index<0?'Live-Erkennung':'Ich sehe: '+classes[result.index].name;$('resultBadge').textContent=Math.round(high*100)+' %';$('resultBadge').classList.toggle('recognized',result.index>=0);
+   if(result.index>=0){hasStableRecognition=true;checkTestChallenge(result.index);updateStepProgress()}
    setCommand(result.index<0?'STOPP':classes[result.index].command,result.reason,result.index);
   }catch(e){stopPrediction();toast('Erkennung angehalten: '+e.message);break}
   await new Promise(resolve=>setTimeout(resolve,140));
  }
 }
-function startPrediction(){if(!trained||!stream||predicting)return;predicting=true;predictSerial++;gate.reset();lastInference=performance.now();updateControls();predictLoop()}
-function stopPrediction(){bitTesting=false;predicting=false;predictSerial++;gate.reset();setCommand('STOPP','Erkennung ist ausgeschaltet');$('resultBadge').classList.remove('recognized');updateControls()}
+function startPrediction(){if(!trained||!stream||predicting)return;predicting=true;predictSerial++;gate.reset();lastInference=performance.now();if(testTarget<0)nextTestChallenge();updateControls();predictLoop()}
+function stopPrediction(){bitTesting=false;predicting=false;predictSerial++;gate.reset();setCommand('STOPP','Erkennung ist ausgeschaltet');$('resultBadge').classList.remove('recognized');if($('recognitionHero')){$('recognitionHero').dataset.state='idle';$('heroState').textContent=trained?'Pausiert':'Bereit';$('heroHint').textContent=trained?'Starte die Erkennung für einen neuen Test.':'Trainiere zuerst deine KI.'}updateControls()}
 function log(command){lastLogged=command}
-function getClassSymbol(slot){return classes[slot]?.symbol||['heart','smile','left','right','check'][slot]||'off'}
+function getClassSymbol(slot){const symbol=classes[slot]?.symbol;return symbol&&Object.hasOwn(actionNumbers,symbol)?symbol:null}
 function updateConnectionBadge(state){
  const badge=$('bitConnectionBadge');if(!badge)return;
  badge.dataset.state=state||(bitConnecting?'connecting':!bitLink?.connected?'offline':bitReady?'ready':'connecting');
@@ -215,18 +255,19 @@ function updateConnectionBadge(state){
  badge.setAttribute('aria-label',badge.dataset.state==='ready'?'micro:bit verbunden – Verbindung öffnen':badge.dataset.state==='connecting'?'micro:bit verbindet – Verbindung öffnen':'micro:bit nicht verbunden – Verbindung öffnen');
 }
 function setCommand(command,reason,slot=-1){
- const symbol=slot>=0?getClassSymbol(slot):'off';const changed=currentSymbol!==symbol;const previousClass=currentClass;currentCommand=command;currentClass=slot;currentSymbol=symbol;
- $('currentCommand').textContent=slot>=0?classes[slot].name:'—';$('liveAction').textContent=slot>=0?(actionNumbers[symbol]||'—'):'—';
+ const symbol=slot>=0?getClassSymbol(slot):null;const changed=currentSymbol!==symbol;const previousClass=currentClass;currentCommand=command;currentClass=slot;currentSymbol=symbol;
+ $('currentCommand').textContent=slot>=0?classes[slot].name:'—';$('liveAction').textContent=slot>=0?(actionNumbers[symbol]||'keine Aktion'):'keine Aktion';
  if(slot<0)$('liveDelivery').textContent='';
+ else if(!symbol)$('liveDelivery').textContent='Für diese Klasse ist keine micro:bit-Zahl zugeordnet';
  else if(!bitReady||!bitLink?.connected)$('liveDelivery').textContent='Vorschau · micro:bit nicht verbunden';
  else if(!changed&&previousClass!==slot)$('liveDelivery').textContent='✓ bereits angezeigt';
  else if(changed)$('liveDelivery').textContent='Wird gesendet …';
- $('commandReason').textContent=reason;log(command);if(changed&&bitLink?.connected&&bitReady)sendCurrent();
+ $('commandReason').textContent=reason;log(command);if(symbol&&changed&&bitLink?.connected&&bitReady)sendCurrent();
 }
 async function sendCurrent(){
- if(!bitLink?.connected||!bitReady)return;if(sending){pendingSymbol=true;return}sending=true;
+ if(!bitLink?.connected||!bitReady||!currentSymbol)return;if(sending){pendingSymbol=true;return}sending=true;
  const link=bitLink;
- try{do{pendingSymbol=false;const value=currentSymbol.toUpperCase();if(currentClass>=0)$('liveDelivery').textContent='Wird gesendet …';await link.send(value);if(link===bitLink){$('linkLiveStatus').textContent='micro:bit: Zahl '+actionNumbers[value.toLowerCase()]+' bestätigt.';if(value===currentSymbol.toUpperCase()&&currentClass>=0)$('liveDelivery').textContent='✓ micro:bit bestätigt'}}while(pendingSymbol&&link===bitLink&&link.connected)}
+ try{do{pendingSymbol=false;const value=currentSymbol?currentSymbol.toUpperCase():'';if(currentClass>=0)$('liveDelivery').textContent='Wird gesendet …';await link.send(value);if(link===bitLink){$('linkLiveStatus').textContent='micro:bit: Zahl '+actionNumbers[value.toLowerCase()]+' bestätigt.';if(currentSymbol&&value===currentSymbol.toUpperCase()&&currentClass>=0)$('liveDelivery').textContent='✓ micro:bit bestätigt'}}while(pendingSymbol&&link===bitLink&&link.connected)}
  catch(e){if(link===bitLink){
   $('linkLiveStatus').textContent='micro:bit: Antwort ausgeblieben. Verbindung wird geprüft …';
   if(currentClass>=0)$('liveDelivery').textContent='Antwort wird geprüft';
@@ -284,12 +325,13 @@ window.addEventListener('pagehide',()=>{stopCapture();stopPrediction();saveNow()
 window.addEventListener('orientationchange',()=>saveNow());
 window.addEventListener('beforeunload',e=>{if(!storageHealthy||savePending){e.preventDefault();e.returnValue=''}});
 function updateClassTabs(){
- const nav=$('classTabs');if(!nav.children.length)classes.forEach((c,i)=>{const b=document.createElement('button');b.innerHTML='<b></b><small></small><span></span>';b.onclick=()=>{selectedClass=i;classes.forEach((c,j)=>$('class'+j).hidden=j!==i);updateClassTabs();scheduleSave()};nav.append(b)});
- classes.forEach((c,i)=>{const b=nav.children[i];b.querySelector('b').textContent=i+1;b.querySelector('small').textContent=c.name||'Klasse '+(i+1);b.querySelector('span').textContent=c.samples.length?imageCount(c.samples.length):'Leer';b.setAttribute('aria-label','Klasse '+(i+1)+': '+(c.name||'ohne Namen'));b.setAttribute('aria-pressed',String(i===selectedClass));b.classList.toggle('selected',i===selectedClass);b.disabled=restoring||!!recording||training});
+ const nav=$('classTabs');
+ if(nav.children.length!==classes.length){nav.replaceChildren();classes.forEach((c,i)=>{const b=document.createElement('button');b.innerHTML='<b></b><small></small><span></span>';b.onclick=()=>{selectedClass=i;classes.forEach((c,j)=>{const card=$('class'+j);if(card)card.hidden=j!==i});updateCards();scheduleSave()};nav.append(b)})}
+ classes.forEach((c,i)=>{const b=nav.children[i];b.style.setProperty('--tab-accent',classColor(i));b.style.setProperty('--tab-text',classTextColor(i));b.querySelector('b').textContent=i+1;b.querySelector('small').textContent=c.name||'Klasse '+(i+1);b.querySelector('span').textContent=c.samples.length?imageCount(c.samples.length):'Leer';b.setAttribute('aria-label','Klasse '+(i+1)+': '+(c.name||'ohne Namen'));b.setAttribute('aria-pressed',String(i===selectedClass));b.classList.toggle('selected',i===selectedClass);b.disabled=restoring||!!recording||training});
 }
 function showPane(pane,persist=true){
  const ids={collect:'collectPane',train:'trainingSection',live:'liveSection',connect:'connectionSection'},buttons={collect:'stepCollect',train:'stepTrain',live:'stepLive',connect:'stepConnect'};
- if(!ids[pane])return;currentPane=pane;Object.entries(ids).forEach(([key,id])=>{$(id).hidden=key!==pane;$(buttons[key]).classList.toggle('active',key===pane);$(buttons[key]).setAttribute('aria-pressed',String(key===pane))});if(persist)scheduleSave();if(pane==='connect')renderBitMappings();
+ if(!ids[pane])return;currentPane=pane;Object.entries(ids).forEach(([key,id])=>{$(id).hidden=key!==pane;$(buttons[key]).classList.toggle('active',key===pane);$(buttons[key]).setAttribute('aria-pressed',String(key===pane))});if(persist)scheduleSave();if(pane==='connect')renderBitMappings();if(pane==='live'&&trained&&testTarget<0)nextTestChallenge();
 }
 function scheduleSave(delay=120){if(restoring)return;projectDirty=true;savePending=true;$('saveStatus').textContent='Wird lokal gespeichert …';clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,delay)}
 function saveNow(changed=false){
@@ -301,7 +343,7 @@ function saveNow(changed=false){
 async function restoreProject(override){
  try{
   const state=override||await LabStorage.read();if(!override)storageVersion=state?.savedAt??null;
-  if(state){const restored=CameraLabCore.validateProject(state.project);if(restored.some(c=>c.samples.some(row=>row.length!==512)))throw Error('Unpassendes lokales Projekt');classes=restored;projectName=typeof state.project.name==='string'?state.project.name.slice(0,60):'Mein Experiment';$('projectName').value=projectName;selectedClass=Number.isInteger(state.selectedClass)&&state.selectedClass>=0&&state.selectedClass<5?state.selectedClass:0;confidence=Math.max(.6,Math.min(.99,Number(state.confidence)||.85));$('threshold').value=Math.round(confidence*100);$('thresholdValue').textContent=Math.round(confidence*100)+' %';
+  if(state){const restored=CameraLabCore.validateProject(state.project);if(restored.some(c=>c.samples.some(row=>row.length!==512)))throw Error('Unpassendes lokales Projekt');classes=restored;projectName=typeof state.project.name==='string'?state.project.name.slice(0,60):'Mein Experiment';$('projectName').value=projectName;selectedClass=Number.isInteger(state.selectedClass)&&state.selectedClass>=0&&state.selectedClass<classes.length?state.selectedClass:0;confidence=Math.max(.6,Math.min(.99,Number(state.confidence)||.85));$('threshold').value=Math.round(confidence*100);$('thresholdValue').textContent=Math.round(confidence*100)+' %';
    const status=CameraLabCore.trainingReadiness(classes);const indices=status.active.map(c=>c.index);
    if(state.model&&status.ready&&JSON.stringify(indices)===JSON.stringify(state.model.activeIndices)){
     activeIndices=indices;
@@ -334,39 +376,47 @@ $('projectName').oninput=e=>{projectName=e.target.value;scheduleSave()};$('proje
 $('newProjectBtn').onclick=async()=>{if(training||restoring||extracting)return;stopCapture();stopPrediction();$('projectDialogStatus').textContent='';$('projectFileName').textContent=projectFilename();$('newProjectDialog').showModal();$('restorePrevious').disabled=!(await LabStorage.read('previous').catch(()=>null))};
 $('startNewProject').onclick=async()=>{
  if(training||restoring||extracting)return;$('startNewProject').disabled=true;
- try{stopCapture();stopPrediction();await saveNow();await LabStorage.write(makeSnapshot(),'previous');invalidate();classes=Array.from({length:5},(_,i)=>({name:'Klasse '+(i+1),command:'STOPP',samples:[],images:[],thumb:''}));projectName=$('newProjectName').value.trim()||'Neues Experiment';$('projectName').value=projectName;selectedClass=0;undoDeletion=null;$('undoBar').hidden=true;renderCards();showPane('collect');await saveNow();$('newProjectDialog').close();toast('Neues Projekt bereit. Das vorige kannst du über „Neues Projekt“ zurückholen.')}
+ try{stopCapture();stopPrediction();await saveNow();await LabStorage.write(makeSnapshot(),'previous');invalidate();classes=[makeClass(0),makeClass(1)];projectName=$('newProjectName').value.trim()||'Neues Experiment';$('projectName').value=projectName;selectedClass=0;undoDeletion=null;$('undoBar').hidden=true;renderCards();showPane('collect');await saveNow();$('newProjectDialog').close();toast('Neues Projekt bereit. Das vorige kannst du über „Neues Projekt“ zurückholen.')}
  catch(e){$('projectDialogStatus').textContent='Die lokale Sicherung ist nicht möglich. Exportiere zuerst dein jetziges Projekt; es wurde noch nichts verworfen.'}
  finally{$('startNewProject').disabled=false}
 };
 $('restorePrevious').onclick=async()=>{
  if(training||restoring||extracting)return;const previous=await LabStorage.read('previous').catch(()=>null);if(!previous){$('projectDialogStatus').textContent='Noch kein vorheriges Projekt vorhanden.';return}stopCapture();stopPrediction();const current=makeSnapshot();restoring=true;invalidate();undoDeletion=null;$('undoBar').hidden=true;await restoreProject(previous);await LabStorage.write(current,'previous');await saveNow(true);$('newProjectDialog').close();toast('Vorheriges Projekt wiederhergestellt.');
 };
+$('addClassBtn').onclick=()=>{if(restoring||training||recording||extracting)return;stopPrediction();invalidate();classes.push(makeClass(classes.length));selectedClass=classes.length-1;renderCards();saveNow(true);toast('Neue Klasse hinzugefügt.')};
+$('removeClassBtn').onclick=()=>{if(restoring||training||recording||extracting||classes.length<=1)return;const c=classes[selectedClass];if(c.samples.length&&!confirm('Klasse „'+c.name+'“ mit '+imageCount(c.samples.length)+' wirklich löschen?'))return;stopPrediction();classes.splice(selectedClass,1);selectedClass=Math.max(0,Math.min(selectedClass,classes.length-1));classes.forEach((item,i)=>{if(!item.name.trim()||/^Klasse \\d+$/.test(item.name))item.name='Klasse '+(i+1)});invalidate();renderCards();saveNow(true);toast('Klasse gelöscht.')};
+$('nextChallenge').onclick=nextTestChallenge;
 const patterns=MicrobitTransport.symbols;
 const numberPatterns={number1:[4,12,4,4,14],number2:[14,17,2,4,31],number3:[30,1,6,1,30],number4:[18,18,31,2,2],number5:[31,16,30,1,30],number6:[15,16,30,17,14],number7:[31,2,4,8,8],number8:[14,17,14,17,14],number9:[14,17,15,1,30],number10:[23,21,21,21,23]};
 function renderLED(element,pattern){if(!element)return;const rows=numberPatterns[pattern]||patterns[pattern]||patterns.square;if(!element.children.length)for(let i=0;i<25;i++)element.append(document.createElement('i'));[...element.children].forEach((led,i)=>led.classList.toggle('lit',!!(rows[Math.floor(i/5)]&(1<<(4-i%5)))));element.dataset.pattern=pattern}
-function renderNumberLED(element,symbol){renderLED(element,'number'+(actionNumbers[symbol]||'1'))}
+function renderNumberLED(element,symbol){if(!symbol){renderLED(element,'off');return}renderLED(element,'number'+(actionNumbers[symbol]||'1'))}
 function updateBitUI(){
  const connected=!!bitLink?.connected;$('connectBtn').disabled=bitConnecting||connected;$('connectBtn').textContent=bitConnecting?'Verbinde …':bitMode==='usb'?'micro:bit über USB verbinden':bitMode==='native'?'micro:bit in iPad-App verbinden':'micro:bit über Bluetooth verbinden';$('disconnectBtn').hidden=!connected;$('testLedBtn').disabled=!connected||!bitReady||bitTesting;$('testLedBtn').textContent=bitTesting?'Warte auf Antwort …':'2 senden und Antwort prüfen';$('bitGoLive').disabled=!trained||training;$('bitGoLive2').disabled=!trained||training;
  updateConnectionBadge();
  $('usbTab').hidden=bitMode==='native';$('bleTab').hidden=bitMode==='native';$('usbTab').classList.toggle('active',bitMode==='usb');$('bleTab').classList.toggle('active',bitMode==='ble');$('usbTab').setAttribute('aria-pressed',String(bitMode==='usb'));$('bleTab').setAttribute('aria-pressed',String(bitMode==='ble'));
- $('modeHint').textContent=bitMode==='native'?'iPad-App: Kamera-KI und Bluetooth laufen zusammen. Starte zuerst das Teachable-Labor-Startprogramm auf dem micro:bit.':bitMode==='usb'?'Windows: USB-Datenkabel, Chrome oder Edge. Wähle im Fenster den seriellen micro:bit-Anschluss.':'iPad: Bluefy öffnen. Vor dem Verbinden Taste A drücken: zwei LEDs = richtiges Programm. Balken = Kopplungsmodus; einmal Reset drücken.';
+ $('modeHint').textContent=bitMode==='native'?'iPad-App erkannt. Kamera-KI und Bluetooth laufen zusammen. Starte zuerst das Teachable-Labor-Startprogramm auf dem micro:bit.':bitMode==='usb'?'Windows erkannt: USB-Datenkabel verwenden und im Browser den seriellen micro:bit-Anschluss wählen.':'iPad erkannt: Diese Seite in Bluefy öffnen. Taste A zeigt zwei einzelne LEDs, wenn das richtige Startprogramm läuft.';
  if(bitMode==='native'){$('bitStatus').title='Die iPad-App stellt die Bluetooth-Verbindung her.';document.querySelector('.bit-hint').textContent='Die iPad-App nutzt die Kamera für Training und Live-Erkennung und sendet Befehle direkt über Bluetooth.';document.querySelector('.teacher-steps>div:nth-child(3) p').textContent='iPad-App: micro:bit mit Strom versorgen, Bluetooth einschalten und im Teachable Labor auf Verbinden tippen.'}
  $('connectInstruction').textContent=bitMode==='native'?'Bluetooth einschalten und den micro:bit im Auswahlfenster der App wählen.':bitMode==='usb'?'USB-Datenkabel einstecken und den seriellen micro:bit-Anschluss auswählen.':'Bluetooth einschalten, diese Seite in Bluefy öffnen und den BBC micro:bit auswählen. Nicht A+B+Reset oder dreimal Reset drücken.';
+ updateStepProgress();
 }
 function showBitView(view){bitView=view;document.querySelector('.bit-connect-view').hidden=view!=='connect';$('bitActionsView').hidden=view!=='actions';renderBitMappings();updateBitUI()}
 const symbolLabels={heart:'♥ Herz',smile:'☺ Lächeln',left:'← Pfeil links',right:'→ Pfeil rechts',up:'↑ Pfeil oben',down:'↓ Pfeil unten',check:'✓ Häkchen',cross:'× Kreuz',square:'□ Quadrat',off:'○ LEDs aus'};
 const actionNumbers=Object.fromEntries(Object.entries(MicrobitTransport.COMMAND_CODES).map(([name,number])=>[name.toLowerCase(),number]));
 function setClassSymbol(slot,symbol){
- const c=classes[slot];if(!c||!Object.hasOwn(actionNumbers,symbol))return;
- c.symbol=symbol;const card=$('class'+slot);
- if(card){card.querySelector('.class-symbol').value=symbol;renderNumberLED(card.querySelector('.class-action-preview'),symbol)}
- renderBitMappings();scheduleSave();
- if(currentClass===slot){currentSymbol=symbol;$('liveAction').textContent=actionNumbers[symbol];sendCurrent()}
+ const c=classes[slot];if(!c)return;const normalized=symbol&&Object.hasOwn(actionNumbers,symbol)?symbol:null;
+ c.symbol=normalized;renderBitMappings();scheduleSave();
+ if(currentClass===slot){currentSymbol=normalized;$('liveAction').textContent=normalized?actionNumbers[normalized]:'keine Aktion';if(normalized)sendCurrent();else $('liveDelivery').textContent='Für diese Klasse ist keine micro:bit-Zahl zugeordnet'}
 }
 function renderBitMappings(){
  const container=$('bitMappings');container.replaceChildren();const occupied=classes.map((c,i)=>({c,i})).filter(({c})=>c.samples.length);
- if(!occupied.length){const p=document.createElement('p');p.className='mapping-empty';p.textContent='Wähle die micro:bit-Aktion schon beim Sammeln direkt bei deiner Klasse. Nach der ersten Aufnahme erscheint sie auch hier.';container.append(p);return}
- occupied.forEach(({c,i})=>{const row=document.createElement('div');row.className='symbol-row';const matrix=document.createElement('div');matrix.className='led-matrix symbol-mini';matrix.setAttribute('aria-hidden','true');renderNumberLED(matrix,getClassSymbol(i));const label=document.createElement('label');const name=document.createElement('span');name.textContent=c.name;const select=document.createElement('select');select.setAttribute('aria-label','Zahl für '+c.name);for(const [value,number] of Object.entries(actionNumbers)){const option=document.createElement('option');option.value=value;option.textContent=number;option.setAttribute('aria-label',number+' – '+symbolLabels[value]);select.append(option)}select.value=getClassSymbol(i);select.onchange=()=>setClassSymbol(i,select.value);label.append(name,select);row.append(matrix,label);container.append(row)});
+ if(!occupied.length){const p=document.createElement('p');p.className='mapping-empty';p.textContent='Sammle zuerst Bilder. Danach kannst du hier einzelnen Klassen eine micro:bit-Zahl zuordnen.';container.append(p);return}
+ occupied.forEach(({c,i})=>{
+  const row=document.createElement('div');row.className='symbol-row';const matrix=document.createElement('div');matrix.className='led-matrix symbol-mini';matrix.setAttribute('aria-hidden','true');renderNumberLED(matrix,getClassSymbol(i));
+  const label=document.createElement('label');const name=document.createElement('span');name.textContent=c.name;const select=document.createElement('select');select.setAttribute('aria-label','micro:bit-Zahl für '+c.name);
+  const none=document.createElement('option');none.value='';none.textContent='Keine Aktion';select.append(none);
+  for(const [value,number] of Object.entries(actionNumbers)){const option=document.createElement('option');option.value=value;option.textContent='Zahl '+number+' · '+symbolLabels[value];select.append(option)}
+  select.value=getClassSymbol(i)||'';select.onchange=()=>setClassSymbol(i,select.value);label.append(name,select);row.classList.toggle('unassigned',!getClassSymbol(i));row.append(matrix,label);container.append(row)
+ });
 }
 function openTeacher(){stopPrediction();$('setupDialog').showModal()}
 $('teacherBtn').onclick=openTeacher;$('teacherQuick').onclick=openTeacher;

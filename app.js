@@ -14,7 +14,7 @@ function isObsoleteEmptyFive(list){
 let classes=[makeClass(0),makeClass(1)];
 let stream=null,front=false,base=null,basePromise=null,head=null,trained=false,training=false,predicting=false,recording=null,extracting=false,cameraStarting=false,revision=0,trainMessage='',trainError=false;
 let currentCommand='STOPP',lastInference=0,lastLogged='',toastTimer;
-let captureSerial=0,predictSerial=0,confidence=0.85;
+let captureSerial=0,predictSerial=0,confidence=0.85,predictionTask=null;
 let cameraWatchTimer=null,lastVideoTime=0,lastVideoProgress=0,lastCameraRecovery=0;
 let trainingBackend=null,activeIndices=[],oneClass=null,savedModel=null,selectedClass=0,currentPane='collect',restoring=true,saveTimer,savePending=false,storageHealthy=true,saveChain=Promise.resolve(),testTarget=-1,hasStableRecognition=false;
 let projectDirty=false,storageVersion=null;
@@ -94,8 +94,8 @@ function updateControls(){
  // Keep the action available so a tap can explain precisely what is missing.
  $('trainBtn').disabled=restoring||training||!!recording||extracting||cameraStarting;
  $('trainBtn').setAttribute('aria-describedby','trainHint trainMessage');
- $('predictBtn').disabled=!trained||!stream||training||!!recording;
- $('predictBtn').textContent=predicting?'Erkennung läuft':'Erkennung starten';$('predictBtn').disabled=restoring||predicting||!trained||!stream||training||!!recording;
+ $('predictBtn').textContent=predicting?'■ Erkennung stoppen':'▶ Erkennung starten';
+ $('predictBtn').disabled=restoring||!trained||!stream||training||!!recording||cameraStarting;
  $('goLive').disabled=!trained||training;updateBitUI();
  $('singleHint').hidden=activeIndices.length!==1;
  $('singleHint').textContent='Eine Klasse: Ähnlichkeit mit deinen Beispielen. Mit einer Hintergrundklasse wird die Unterscheidung zuverlässiger.';
@@ -163,12 +163,15 @@ async function loadBase(){
   const full=await tf.loadLayersModel(new URL('model/model.json',location.href).href,{onProgress:p=>{$('modelStatus').textContent='Bildmodell wird geladen … '+Math.round(p*100)+' %'}});
   const extractor=tf.model({inputs:full.inputs,outputs:full.getLayer('global_average_pooling2d_1').output});
   base={infer(source){return tf.tidy(()=>{const image=source instanceof tf.Tensor?source:tf.browser.fromPixels(source);const normalized=tf.image.resizeBilinear(image.toFloat(),[224,224]).div(127.5).sub(1).expandDims();return extractor.predict(normalized)})}};
+  const warmInput=tf.zeros([224,224,3]);let warmOutput;
+  try{warmOutput=base.infer(warmInput);await warmOutput.data()}finally{warmOutput?.dispose();warmInput.dispose()}
   $('modelStatus').textContent='✓ Bildmodell bereit · Lernen und Erkennen laufen lokal';updateCards();return base;
  }catch(e){basePromise=null;$('modelStatus').textContent='Bildmodell nicht verfügbar: '+e.message;throw e}})();
  return basePromise;
 }
 async function startCamera(){
  if(cameraStarting||training)return;cameraStarting=true;clearInterval(cameraWatchTimer);cameraWatchTimer=null;stopPrediction();stopCapture();updateControls();
+ const modelReady=loadBase();
  try{
   if(!navigator.mediaDevices?.getUserMedia)throw Error('Kein Kamerazugriff. Öffne die App über ihre HTTPS-Adresse in Safari, Chrome oder Edge.');
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
@@ -177,9 +180,9 @@ async function startCamera(){
   try{stream=await Promise.race([request,new Promise((_,reject)=>{timer=setTimeout(()=>{expired=true;reject(Error('Kamera antwortet nicht. Bitte erneut starten.'))},12000)})])}finally{clearTimeout(timer)}
   const video=$('video');video.srcObject=stream;
   let playTimer;try{await Promise.race([video.play(),new Promise((_,reject)=>{playTimer=setTimeout(()=>reject(Error('Kamerabild startet nicht. Bitte erneut versuchen.')),8000)})])}finally{clearTimeout(playTimer)}
-  video.classList.toggle('mirror',front);$('cameraEmpty').hidden=true;$('liveBadge').hidden=false;$('camDot').classList.add('on');$('cameraStatus').textContent='Kamera aktiv · mittlerer Bildausschnitt';
+  video.classList.toggle('mirror',front);$('cameraEmpty').hidden=true;$('liveBadge').hidden=false;$('camDot').classList.add('on');$('cameraStatus').textContent=base?'Kamera aktiv · bereit zum Aufnehmen':'Kamera aktiv · KI wird vorbereitet …';
   const activeStream=stream;activeStream.getVideoTracks()[0].addEventListener('ended',()=>{if(stream===activeStream)stopCamera()});
-  await loadBase();if(!stream)return;lastVideoTime=video.currentTime;lastVideoProgress=performance.now();cameraWatchTimer=setInterval(checkCameraFrame,1000);
+  await modelReady;if(!stream)return;$('cameraStatus').textContent='Kamera aktiv · bereit zum Aufnehmen';lastVideoTime=video.currentTime;lastVideoProgress=performance.now();cameraWatchTimer=setInterval(checkCameraFrame,1000);
  }catch(e){const message=e.name==='NotAllowedError'?'Kamerazugriff verweigert. Bitte erlaube der App den Kamerazugriff in deinem Browser.':e.name==='NotFoundError'?'Keine Kamera gefunden. Öffne die App auf deinem iPad oder einem Gerät mit Kamera.':e.message;toast(message);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}resetCameraUI()}
  finally{cameraStarting=false;updateCards()}
 }
@@ -240,22 +243,53 @@ async function train(){
  finally{xs?.dispose();ys?.dispose();if(trainingBackend&&tf.getBackend()!==trainingBackend){try{await tf.setBackend(trainingBackend);await tf.ready()}catch(e){$('modelStatus').textContent='Kompatibilitätsmodus (CPU) aktiv'}}trainingBackend=null;training=false;$('trainingProgress').hidden=true;updateCards()}
 }
 
-async function predictLoop(){
- const myRevision=revision,mySerial=predictSerial;
+async function predictLoop(myRevision,mySerial){
  while(predicting&&trained&&stream&&myRevision===revision&&mySerial===predictSerial&&!document.hidden){
-  try{const row=await features();if(!predicting||myRevision!==revision||mySerial!==predictSerial)break;
-   let probs;if(oneClass){probs=CameraLabCore.mapProbabilities([CameraLabCore.singleScore(row,oneClass)],activeIndices,classes.length)}else{const output=tf.tidy(()=>head.predict(tf.tensor2d([row])));try{probs=CameraLabCore.mapProbabilities(Array.from(await output.data()),activeIndices,classes.length)}finally{output.dispose()}}
-   if(!predicting||myRevision!==revision||mySerial!==predictSerial)break;lastInference=performance.now();
-   const result=gate.update(probs,confidence,lastInference);const best=probs.indexOf(Math.max(...probs)),high=Math.max(...probs);renderBars(probs);updateRecognitionHero(probs,result,best);
-   $('resultTitle').textContent=result.index<0?'Live-Erkennung':'Ich sehe: '+classLabel(result.index);$('resultBadge').textContent=Math.round(high*100)+' %';$('resultBadge').classList.toggle('recognized',result.index>=0);
+  try{
+   const row=await features();
+   if(!predicting||myRevision!==revision||mySerial!==predictSerial)break;
+   let probs;
+   if(oneClass){
+    probs=CameraLabCore.mapProbabilities([CameraLabCore.singleScore(row,oneClass)],activeIndices,classes.length);
+   }else{
+    const output=tf.tidy(()=>head.predict(tf.tensor2d([row])));
+    try{probs=CameraLabCore.mapProbabilities(Array.from(await output.data()),activeIndices,classes.length)}
+    finally{output.dispose()}
+   }
+   if(!predicting||myRevision!==revision||mySerial!==predictSerial)break;
+   lastInference=performance.now();
+   const result=gate.update(probs,confidence,lastInference),best=probs.indexOf(Math.max(...probs)),high=Math.max(...probs);
+   renderBars(probs);updateRecognitionHero(probs,result,best);
+   $('resultTitle').textContent=result.index<0?'Live-Erkennung':'Ich sehe: '+classLabel(result.index);
+   $('resultBadge').textContent=Math.round(high*100)+' %';$('resultBadge').classList.toggle('recognized',result.index>=0);
    if(result.index>=0){hasStableRecognition=true;checkTestChallenge(result.index);updateStepProgress()}
    setCommand(result.index<0?'STOPP':classes[result.index].command,result.reason,result.index);
-  }catch(e){stopPrediction();toast('Erkennung angehalten: '+e.message);break}
-  await new Promise(resolve=>setTimeout(resolve,140));
+  }catch(e){
+   if(mySerial===predictSerial){stopPrediction();toast('Erkennung angehalten: '+e.message)}
+   break;
+  }
+  await new Promise(resolve=>setTimeout(resolve,100));
  }
 }
-function startPrediction(){if(!trained||!stream||predicting)return;predicting=true;predictSerial++;gate.reset();lastInference=performance.now();if(testTarget<0)nextTestChallenge();updateControls();predictLoop()}
-function stopPrediction(){bitTesting=false;predicting=false;predictSerial++;gate.reset();setCommand('STOPP','Erkennung ist ausgeschaltet');$('resultBadge').classList.remove('recognized');if($('recognitionHero')){$('recognitionHero').dataset.state='idle';$('heroState').textContent=trained?'Pausiert':'Bereit';$('heroHint').textContent=trained?'Starte die Erkennung für einen neuen Test.':'Trainiere zuerst deine KI.'}updateControls()}
+function startPrediction(){
+ if(!trained||!stream||training||recording||cameraStarting||predicting)return;
+ predicting=true;const mySerial=++predictSerial,myRevision=revision;gate.reset();lastInference=performance.now();
+ if(testTarget<0)nextTestChallenge();updateControls();
+ const previous=predictionTask;
+ predictionTask=(async()=>{
+  if(previous){try{await previous}catch(e){}}
+  if(!predicting||mySerial!==predictSerial||myRevision!==revision)return;
+  await predictLoop(myRevision,mySerial);
+ })();
+}
+function stopPrediction(){
+ bitTesting=false;
+ const wasPredicting=predicting;predicting=false;predictSerial++;gate.reset();
+ setCommand('STOPP','Erkennung ist ausgeschaltet');$('resultBadge').classList.remove('recognized');
+ if($('recognitionHero')){$('recognitionHero').dataset.state='idle';$('heroState').textContent=trained?'Pausiert':'Bereit';$('heroHint').textContent=trained?'Starte die Erkennung für einen neuen Test.':'Trainiere zuerst deine KI.'}
+ if(wasPredicting)$('resultTitle').textContent='Erkennung pausiert';
+ updateControls();
+}
 function log(command){lastLogged=command}
 function getClassSymbol(slot){const symbol=classes[slot]?.symbol;return symbol&&Object.hasOwn(actionNumbers,symbol)?symbol:null}
 function updateConnectionBadge(state){
@@ -439,3 +473,4 @@ $('bitGoLive').onclick=()=>showPane('live');
 $('testLedBtn').onclick=async()=>{if(!bitLink?.connected||bitTesting)return;bitTesting=true;$('testStatus').textContent='Zahl 2 unterwegs …';updateBitUI();try{await bitLink.send('HEART');$('testStatus').textContent='✓ micro:bit meldet OK:2. Auf den LEDs erscheint das Muster mit zwei Punkten.'}catch(e){$('testStatus').textContent='Keine Antwort auf die Zahl 2. USB-Kabel und COM-Port prüfen, dann erneut verbinden.';await disconnectBit()}finally{bitTesting=false;updateBitUI()}};
 for(const matrix of document.querySelectorAll('.led-matrix'))renderLED(matrix,matrix.dataset.pattern||'heart');
 renderCards();updateBitUI();restoreProject();
+setTimeout(()=>{loadBase().catch(()=>{})},0);

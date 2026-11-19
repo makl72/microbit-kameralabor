@@ -19,7 +19,7 @@ let cameraWatchTimer=null,lastVideoTime=0,lastVideoProgress=0,lastCameraRecovery
 let trainingBackend=null,activeIndices=[],oneClass=null,savedModel=null,selectedClass=0,currentPane='collect',restoring=true,saveTimer,savePending=false,storageHealthy=true,saveChain=Promise.resolve(),testTarget=-1,hasStableRecognition=false;
 let projectDirty=false,storageVersion=null;
 let projectName='Mein Experiment',undoDeletion=null,gallerySelection=new Set(),gallerySlot=0;
-let bitLink=null,bitMode=window.webkit?.messageHandlers?.microbit?'native':/iPad|iPhone|iPod/.test(navigator.userAgent)||(!navigator.serial&&navigator.bluetooth)?'ble':'usb',bitConnecting=false,bitTesting=false,bitReady=false,bitView='connect',currentClass=-1,currentSymbol=null,sending=false,pendingSymbol=false;
+let bitLink=null,bitMode=window.webkit?.messageHandlers?.microbit?'native':'ble',bitConnecting=false,bitTesting=false,bitReady=false,bitView='connect',currentClass=-1,currentSymbol=null,sending=false,pendingSymbol=false;
 const gate=CameraLabCore.createGate();
 const canvas=document.createElement('canvas');canvas.width=canvas.height=224;
 const ctx=canvas.getContext('2d',{willReadFrequently:true});
@@ -266,7 +266,6 @@ async function predictLoop(myRevision,mySerial){
    lastInference=performance.now();
    const result=gate.update(probs,confidence,lastInference),best=probs.indexOf(Math.max(...probs)),high=Math.max(...probs);
    renderBars(probs);updateRecognitionHero(probs,result,best);
-   $('resultTitle').textContent=result.index<0?'Live-Erkennung':'Ich sehe: '+classLabel(result.index);
    $('resultBadge').textContent=Math.round(high*100)+' %';$('resultBadge').classList.toggle('recognized',result.index>=0);
    if(result.index>=0){hasStableRecognition=true;checkTestChallenge(result.index);updateStepProgress()}
    setCommand(result.index<0?'STOPP':classes[result.index].command,result.reason,result.index);
@@ -293,7 +292,7 @@ function stopPrediction(){
  const wasPredicting=predicting;predicting=false;predictSerial++;gate.reset();
  setCommand('STOPP','Erkennung ist ausgeschaltet');$('resultBadge').classList.remove('recognized');
  if($('recognitionHero')){$('recognitionHero').dataset.state='idle';$('heroState').textContent=trained?'Pausiert':'Bereit';$('heroHint').textContent=trained?'Starte die Erkennung für einen neuen Test.':'Trainiere zuerst deine KI.'}
- if(wasPredicting)$('resultTitle').textContent='Erkennung pausiert';
+ if(wasPredicting)$('resultTitle').textContent='Teste deine KI';
  updateControls();
 }
 function log(command){lastLogged=command}

@@ -65,9 +65,9 @@ main{padding:13px 18px 18px;gap:14px}
 .steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;flex:1;min-width:0}
 .steps button{position:relative;min-height:58px;display:flex;align-items:center;justify-content:center;gap:8px;padding:9px 8px;background:linear-gradient(180deg,#eceefa,#e1e4f2);color:#35416e;border:1px solid #d9ddee;font-size:13px;white-space:nowrap}
 .steps button.active{background:linear-gradient(180deg,#a64de8,#7b24c9);border-color:#7d2acf;color:#fff;box-shadow:0 4px 0 #6419a7}
-.step-number{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:50%;background:#7a84a9;color:#fff;font-size:14px}
-.steps button.active .step-number{background:#efd0ff;color:#6822aa}
-.steps button.done:not(.active) .step-number{background:#d9f3df;color:#21713a}
+.step-number{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:50%;background:#4f5d85;color:#fff;font-size:14px}
+.steps button.active .step-number,
+.steps button.done:not(.active) .step-number{background:#4f5d85;color:#fff}
 .step-icon{font-size:22px;line-height:1}
 .file-actions{gap:7px}
 .quick-save,.new-project{min-height:42px;background:#fff;border:1px solid #d9ddef;color:#602c9c;font-size:12px}
@@ -597,4 +597,14 @@ dialog a{color:#7535bd}
     min-width:20px!important;
     font-size:11px!important;
   }
+}
+
+/* Keep workflow number circles visually consistent across every state. */
+.steps button .step-number,
+.steps button.active .step-number,
+.steps button.done .step-number{
+  background:#4f5d85!important;
+  color:#fff!important;
+  border:0!important;
+  box-shadow:none!important;
 }

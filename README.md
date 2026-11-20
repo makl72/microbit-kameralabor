@@ -21,3 +21,10 @@ Die App sendet bei stabiler Erkennung optional `1` bis `10` über USB oder Bluet
 ## MakeCode-Erweiterung
 
 Das Repository ist gleichzeitig eine MakeCode-Erweiterung. Die Datei `pxt.json` lädt `teachable-labor.ts`. Die Erweiterung stellt zehn einfache Ereignisblöcke bereit, startet die Kommunikation automatisch und kapselt die komplette Kommunikation mit der Web-App. Dadurch kann die Schüler-Arbeitsfläche vollständig leer starten. Das ältere `Kameralabor-Startprogramm-v2.mkcd` bleibt aus Kompatibilitätsgründen im Repository; für neue Unterrichtsprojekte ist `Kameralabor-Schuelerprogramm-v3.mkcd` vorgesehen.
+
+
+## iPad-Workflow
+
+Das Schülerprogramm verwendet **JustWorks-Pairing** statt „No Pairing Required“. Dadurch kann der micro:bit mit der offiziellen micro:bit-iOS-App gekoppelt bleiben und später erneut per Bluetooth programmiert werden.
+
+Ablauf: Bluefy trennen → Programm in der micro:bit-App ändern und herunterladen → micro:bit-App trennen → Bluefy öffnen → Teachable Labor verbinden.

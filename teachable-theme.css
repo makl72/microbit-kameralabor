@@ -67,8 +67,9 @@ main{padding:13px 18px 18px;gap:14px}
 .steps button.active{background:linear-gradient(180deg,#a64de8,#7b24c9);border-color:#7d2acf;color:#fff;box-shadow:0 4px 0 #6419a7}
 .step-number{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:50%;background:#7a84a9;color:#fff;font-size:14px}
 .steps button.active .step-number{background:#efd0ff;color:#6822aa}
-.steps button.done:not(.active) .step-number{background:#d9f3df;color:#21713a;font-size:0}
-.steps button.done:not(.active) .step-number::after{content:"✓";font-size:14px;font-weight:950}
+.steps button.done:not(.active){position:relative}
+.steps button.done:not(.active) .step-number{background:#d9f3df;color:#21713a;font-size:14px}
+.steps button.done:not(.active)::after{content:"✓";position:absolute;right:7px;top:6px;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#d9f3df;color:#21713a;font-size:10px;font-weight:950}
 .step-icon{font-size:22px;line-height:1}
 .file-actions{gap:7px}
 .quick-save,.new-project{min-height:42px;background:#fff;border:1px solid #d9ddef;color:#602c9c;font-size:12px}
@@ -403,10 +404,6 @@ dialog a{color:#7535bd}
 }
 
 /* Final navigation + animated micro:bit visual for the last two panes */
-.steps .step-connect{gap:9px}
-.steps .step-connect .step-icon{font-size:24px}
-.steps .step-connect.active{background:linear-gradient(180deg,#8fdedc,#62c9c9);border-color:#55b9bb;color:#24395b;box-shadow:0 4px 0 #439da0}
-
 .microbit-visual{
   position:relative;
   min-height:0;

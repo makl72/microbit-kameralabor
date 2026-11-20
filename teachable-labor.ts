@@ -64,6 +64,14 @@ namespace teachableLabor {
     }
 
     /**
+     * Startet die Kommunikation. Wird vom Schülerprojekt unsichtbar aufgerufen.
+     */
+    //% blockHidden=true
+    export function start(): void {
+        startCommunication()
+    }
+
+    /**
      * Fuehrt die eingefuegten Bloecke aus, wenn die App Zahl 1 sendet.
      */
     //% blockId=teachable_labor_on_1 block="wenn Zahl 1 empfangen"

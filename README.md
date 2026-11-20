@@ -15,4 +15,9 @@ Bilder, Lernmerkmale und trainierte Modelle bleiben lokal im Browser. Projektdat
 
 ## micro:bit-Befehle
 
-Die App sendet bei stabiler Erkennung optional `1` bis `10` über USB oder Bluetooth-UART. Das aktuelle [Startprogramm](Kameralabor-Startprogramm-v2.mkcd) zeigt für jede Zahl ein eigenes LED-Muster. Der Verbindungstest bleibt `PING` → `PONG`; jeder gültige Befehl wird vor der LED-Anzeige mit `OK:<Zahl>` bestätigt. Nach dem Einschalten erscheint die Giraffe, Taste A zeigt das Muster für 2.
+Die App sendet bei stabiler Erkennung optional `1` bis `10` über USB oder Bluetooth-UART. Das aktuelle [Schülerprogramm](Kameralabor-Schuelerprogramm-v3.mkcd) öffnet in MakeCode blockbasiert mit zehn Ereignissen „wenn Zahl 1 empfangen“ bis „wenn Zahl 10 empfangen“. Die Schülerinnen und Schüler ändern nur die Aktionen innerhalb dieser Ereignisse. Die Erweiterung `Teachable Labor` übernimmt verborgen `PING` → `PONG`, USB, Bluetooth-UART und `OK:<Zahl>`.
+
+
+## MakeCode-Erweiterung
+
+Das Repository ist gleichzeitig eine MakeCode-Erweiterung. Die Datei `pxt.json` lädt `teachable-labor.ts`. Die Erweiterung stellt zehn einfache Ereignisblöcke bereit und kapselt die komplette Kommunikation mit der Web-App. Das ältere `Kameralabor-Startprogramm-v2.mkcd` bleibt aus Kompatibilitätsgründen im Repository; für neue Unterrichtsprojekte ist `Kameralabor-Schuelerprogramm-v3.mkcd` vorgesehen.

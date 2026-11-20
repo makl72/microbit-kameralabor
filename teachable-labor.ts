@@ -152,4 +152,7 @@ namespace teachableLabor {
     export function on10(handler: () => void): void {
         register(10, handler)
     }
+
+    // Kommunikation startet automatisch, ohne sichtbaren Block im Schülerprojekt.
+    startCommunication()
 }

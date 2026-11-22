@@ -10,6 +10,9 @@
 namespace teachableLabor {
     const EVENT_SOURCE = 9100
     let started = false
+    let actionRunning = false
+    let activeNumber = 0
+    let queuedNumber = 0
 
     function commandNumber(value: string): number {
         if (value == "1") return 1
@@ -60,7 +63,28 @@ namespace teachableLabor {
 
     function register(number: number, handler: () => void): void {
         startCommunication()
-        control.onEvent(EVENT_SOURCE, number, handler)
+        control.onEvent(EVENT_SOURCE, number, function () {
+            // MakeCode-Ereignisse koennen nebenlaeufig laufen. Lange Aktionen wie
+            // Toene oder Melodien duerfen deshalb nicht mit der naechsten
+            // Erkennung ueberlappen. Waehren eine Aktion laeuft, merken wir uns
+            // nur die zuletzt eingegangene andere Zahl.
+            if (actionRunning) {
+                queuedNumber = number == activeNumber ? 0 : number
+                return
+            }
+
+            actionRunning = true
+            activeNumber = number
+            handler()
+            activeNumber = 0
+            actionRunning = false
+
+            if (queuedNumber != 0) {
+                const next = queuedNumber
+                queuedNumber = 0
+                control.raiseEvent(EVENT_SOURCE, next)
+            }
+        })
     }
 
     /**

@@ -28,3 +28,8 @@ Das Repository ist gleichzeitig eine MakeCode-Erweiterung. Die Datei `pxt.json` 
 Das Schülerprogramm verwendet **JustWorks-Pairing** statt „No Pairing Required“. Dadurch kann der micro:bit mit der offiziellen micro:bit-iOS-App gekoppelt bleiben und später erneut per Bluetooth programmiert werden.
 
 Ablauf: Bluefy trennen → Programm in der micro:bit-App ändern und herunterladen → micro:bit-App trennen → Bluefy öffnen → Teachable Labor verbinden.
+
+
+## Töne und längere Aktionen
+
+Die Teachable-Labor-Ereignisse werden serialisiert: Es läuft immer nur eine Schüleraktion gleichzeitig. Während einer längeren Aktion, zum Beispiel einem Ton oder einer Melodie, wird höchstens die zuletzt erkannte andere Zahl vorgemerkt. Dadurch überlappen sich Aktionen nicht mehr unkontrolliert.

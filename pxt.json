@@ -1,7 +1,7 @@
 {
   "name": "teachable-labor",
-  "version": "1.0.0",
-  "description": "Versteckte USB- und Bluetooth-Kommunikation fuer das Teachable Labor mit einfachen Ereignisbloecken fuer Zahlen 1 bis 10.",
+  "version": "1.0.1",
+  "description": "Versteckte USB- und Bluetooth-Kommunikation fuer das Teachable Labor mit serialisierten Ereignissen fuer Zahlen 1 bis 10.",
   "license": "MIT",
   "dependencies": {
     "core": "*",

@@ -8,8 +8,7 @@
     "bluetooth": "*"
   },
   "files": [
-    "teachable-labor.ts",
-    "schuelerprogramm.md"
+    "teachable-labor.ts"
   ],
   "supportedTargets": [
     "microbit"

@@ -34,20 +34,27 @@ body{display:block}
   const top=document.getElementById("top");
   const status=document.getElementById("status");
   const errorBox=document.getElementById("error");
-  const STORAGE_KEY="teachable-labor-makecode-project-v1";
+  const STORAGE_KEY="teachable-labor-makecode-project-v2";
   let lastProject=null;
   let editorReady=false;
   let importId="";
   let importTimer=null;
   let failTimer=null;
 
+  function isTeachableProject(value){
+    return !!(value&&value.text&&value.text["teachable-labor.ts"]&&value.text["pxt.json"]);
+  }
+
   try{
     const saved=localStorage.getItem(STORAGE_KEY);
-    if(saved) lastProject=JSON.parse(saved);
+    if(saved){
+      const parsed=JSON.parse(saved);
+      if(isTeachableProject(parsed))lastProject=parsed;
+    }
   }catch(e){}
 
   function project(){
-    if(lastProject&&lastProject.text)return lastProject;
+    if(isTeachableProject(lastProject))return lastProject;
     return JSON.parse(JSON.stringify(INITIAL));
   }
 
@@ -101,8 +108,11 @@ body{display:block}
     }
 
     if(msg.type==="pxthost"&&msg.action==="workspacesave"&&msg.project){
-      lastProject=msg.project;
-      try{localStorage.setItem(STORAGE_KEY,JSON.stringify(msg.project))}catch(e){}
+      if(isTeachableProject(msg.project)){
+        lastProject=msg.project;
+        try{localStorage.setItem(STORAGE_KEY,JSON.stringify(msg.project))}catch(e){}
+        markSuccess();
+      }
       return;
     }
 

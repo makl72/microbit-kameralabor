@@ -88,7 +88,7 @@ namespace teachableLabor {
     }
 
     /**
-     * Startet die Kommunikation. Wird vom Schülerprojekt unsichtbar aufgerufen.
+     * Startet die Kommunikation. Wird vom Schuelerprojekt unsichtbar aufgerufen.
      */
     //% blockHidden=true
     export function start(): void {
@@ -185,6 +185,6 @@ namespace teachableLabor {
         register(10, handler)
     }
 
-    // Kommunikation startet automatisch, ohne sichtbaren Block im Schülerprojekt.
+    // Kommunikation startet automatisch, ohne sichtbaren Block im Schuelerprojekt.
     startCommunication()
 }

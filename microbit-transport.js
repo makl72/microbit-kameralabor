@@ -21,19 +21,48 @@
   async readLoop(){
    let error=Error('USB-Verbindung unterbrochen. Kabel, Stromversorgung und COM-Port prüfen.');
    try{
-    while(this.connected&&this.port?.readable){
+    while(this.connected&&!this.closing&&this.port){
+     if(!this.port.readable){
+      let recovered=false;
+      for(let attempt=0;attempt<12&&this.connected&&!this.closing;attempt++){
+       await new Promise(resolve=>setTimeout(resolve,100));
+       if(this.port?.readable){recovered=true;break}
+      }
+      if(!recovered)break;
+     }
+
      const reader=this.port.readable.getReader();this.reader=reader;
-     let ended=false;
+     let streamEnded=false;
      try{
-      while(this.connected){const {value,done}=await reader.read();if(done){ended=true;break}if(value)this.receive(value)}
-     }catch(e){error=e}
-     finally{try{reader.releaseLock()}catch(e){}if(this.reader===reader)this.reader=null}
-     if(ended)break;
-     // Web Serial replaces the stream after a recoverable read error.
-     if(this.connected&&this.port?.readable)await new Promise(resolve=>setTimeout(resolve,100));
+      while(this.connected&&!this.closing){
+       const {value,done}=await reader.read();
+       if(done){streamEnded=true;break}
+       if(value)this.receive(value)
+      }
+     }catch(e){
+      error=e;
+      streamEnded=true;
+     }finally{
+      try{reader.releaseLock()}catch(e){}
+      if(this.reader===reader)this.reader=null
+     }
+
+     if(!this.connected||this.closing)break;
+     if(streamEnded){
+      // Chrome/Web Serial kann den ReadableStream bei einem kurzzeitigen
+      // USB-Fehler ersetzen. Nicht sofort trennen, sondern dem Port Zeit geben,
+      // einen neuen Stream bereitzustellen.
+      let recovered=false;
+      for(let attempt=0;attempt<12&&this.connected&&!this.closing;attempt++){
+       await new Promise(resolve=>setTimeout(resolve,100));
+       if(this.port?.readable){recovered=true;break}
+      }
+      if(recovered)continue;
+      break;
+     }
     }
    }catch(e){error=e}
-   finally{if(!this.closing)this.fail(error)}
+   finally{if(!this.closing&&this.connected)this.fail(error)}
   }
   async write(bytes){const writer=this.port.writable.getWriter();try{await writer.write(bytes)}finally{writer.releaseLock()}}
   async disconnect(){this.closing=true;this.connected=false;this.fail(Error('USB getrennt'));try{await this.reader?.cancel()}catch(e){}try{await this.pump}catch(e){}try{await this.port?.close()}catch(e){}this.port=null}

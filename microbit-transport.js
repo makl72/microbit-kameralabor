@@ -20,6 +20,7 @@
   async connect(){if(!this.serial?.requestPort)throw Error('USB aus Webseiten braucht Chrome oder Edge auf Windows.');this.port=await this.serial.requestPort();try{await this.port.open({baudRate:115200});if(!this.port.readable||!this.port.writable)throw Error('Kein serieller USB-Anschluss. Wähle den micro:bit-Anschluss.');this.connected=true;this.closing=false;this.pump=this.readLoop();await this.probe();return 'USB'}catch(e){await this.disconnect();throw e}}
   async readLoop(){
    let error=Error('USB-Verbindung unterbrochen. Kabel, Stromversorgung und COM-Port prüfen.');
+   let consecutiveEnds=0;
    try{
     while(this.connected&&!this.closing&&this.port){
      if(!this.port.readable){
@@ -37,7 +38,7 @@
       while(this.connected&&!this.closing){
        const {value,done}=await reader.read();
        if(done){streamEnded=true;break}
-       if(value)this.receive(value)
+       if(value){consecutiveEnds=0;this.receive(value)}
       }
      }catch(e){
       error=e;
@@ -51,7 +52,10 @@
      if(streamEnded){
       // Chrome/Web Serial kann den ReadableStream bei einem kurzzeitigen
       // USB-Fehler ersetzen. Nicht sofort trennen, sondern dem Port Zeit geben,
-      // einen neuen Stream bereitzustellen.
+      // einen neuen Stream bereitzustellen. Wiederholte sofortige Stream-Enden
+      // werden aber als echter Abbruch behandelt.
+      consecutiveEnds++;
+      if(consecutiveEnds>12)break;
       let recovered=false;
       for(let attempt=0;attempt<12&&this.connected&&!this.closing;attempt++){
        await new Promise(resolve=>setTimeout(resolve,100));

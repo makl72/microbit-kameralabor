@@ -2,6 +2,8 @@
 
 Statische Web-App fuer iPad und Windows zum Trainieren einer Kamera-KI mit dem micro:bit.
 
+[Teachable Labor öffnen](https://makl72.github.io/teachable-labor/)
+
 ## Lernablauf
 
 1. Klassen frei anlegen oder loeschen und vielfaeltige Kamerabilder sammeln.
@@ -16,7 +18,7 @@ Bilder, Lernmerkmale und trainierte Modelle bleiben lokal im Browser.
 
 Das aktuelle MakeCode-Projekt ist:
 
-`Teachable-Labor-Schuelerprogramm.mkcd`
+[Teachable-Labor-Schuelerprogramm.mkcd herunterladen](https://makl72.github.io/teachable-labor/Teachable-Labor-Schuelerprogramm.mkcd)
 
 Es startet mit leerer Blockflaeche. In der Werkzeugleiste erscheint die Erweiterung **Teachable Labor** mit den Ereignissen **wenn Zahl 1 empfangen** bis **wenn Zahl 10 empfangen**.
 

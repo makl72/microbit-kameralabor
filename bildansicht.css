@@ -39,3 +39,5 @@
 .picture-collect .class-name-hint{margin:3px 0 8px}
 
 .picture-mode #undoBar,.picture-mode .picture-undo[hidden]{display:none!important}
+
+.picture-mode #testChallenge{display:none}

@@ -269,9 +269,8 @@ async function predictLoop(myRevision,mySerial){
    }
    if(!predicting||myRevision!==revision||mySerial!==predictSerial)break;
    lastInference=performance.now();
-   const result=gate.update(probs,confidence,lastInference),best=probs.indexOf(Math.max(...probs)),high=Math.max(...probs);
+   const result=gate.update(probs,confidence,lastInference),best=probs.indexOf(Math.max(...probs));
    renderBars(probs);updateRecognitionHero(probs,result,best);
-   $('resultBadge').textContent=Math.round(high*100)+' %';$('resultBadge').classList.toggle('recognized',result.index>=0);
    if(result.index>=0){hasStableRecognition=true;checkTestChallenge(result.index);updateStepProgress()}
    setCommand(result.index<0?'STOPP':classes[result.index].command,result.reason,result.index);
   }catch(e){
@@ -283,6 +282,7 @@ async function predictLoop(myRevision,mySerial){
 }
 function startPrediction(){
  if(!trained||!stream||training||recording||cameraStarting||predicting)return;
+ $('resultBadge').hidden=true;
  predicting=true;const mySerial=++predictSerial,myRevision=revision;gate.reset();lastInference=performance.now();
  if(testTarget<0)nextTestChallenge();updateControls();
  const previous=predictionTask;
@@ -295,7 +295,7 @@ function startPrediction(){
 function stopPrediction(){
  bitTesting=false;
  const wasPredicting=predicting;predicting=false;predictSerial++;gate.reset();
- setCommand('STOPP','Erkennung ist ausgeschaltet');$('resultBadge').classList.remove('recognized');
+ setCommand('STOPP','Erkennung ist ausgeschaltet');$('resultBadge').hidden=false;
  if($('recognitionHero')){$('recognitionHero').dataset.state='idle';$('heroState').textContent=trained?'Pausiert':'Bereit';$('heroHint').textContent=trained?'Starte die Erkennung für einen neuen Test.':'Trainiere zuerst deine KI.'}
  if(wasPredicting)$('resultTitle').textContent='Teste deine KI';
  updateControls();

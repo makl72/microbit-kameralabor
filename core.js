@@ -32,11 +32,31 @@
     return sum;
   }
 
-  function percentile(values,p){
-    if(!values.length)return 0;
-    const sorted=[...values].sort((a,b)=>a-b);
-    const index=Math.max(0,Math.min(sorted.length-1,Math.round((sorted.length-1)*p)));
-    return sorted[index];
+  // Capture appends immutable feature rows. Deletion/import supplies a new array.
+  const diversityCache=new WeakMap();
+  const nearDuplicateDistance=.14;
+
+  function diversityDistances(samples){
+    let state=diversityCache.get(samples);
+    if(!state||state.rows.length>samples.length){
+      state={rows:[],nearest:[],distanceSum:0};
+      diversityCache.set(samples,state);
+    }
+    for(let i=state.rows.length;i<samples.length;i++){
+      const row=normalize(samples[i]);
+      const empty=row.every(value=>value===0);
+      let nearest=Infinity;
+      for(let j=0;j<i;j++){
+        const other=state.rows[j];
+        const distance=empty&&other.empty?0:Math.max(0,1-cosine(row,other.row));
+        nearest=Math.min(nearest,distance);
+        state.nearest[j]=Math.min(state.nearest[j],distance);
+        state.distanceSum+=distance;
+      }
+      state.rows.push({row,empty});
+      state.nearest.push(nearest);
+    }
+    return state;
   }
 
   function sampleDiversity(samples){
@@ -48,30 +68,20 @@
       };
     }
 
-    const limit=48;
-    const step=Math.max(1,Math.floor(samples.length/limit));
-    const picked=[];
-    for(let i=0;i<samples.length&&picked.length<limit;i+=step)picked.push(normalize(samples[i]));
-
-    const pairDistances=[];
-    const nearestDistances=[];
-    for(let i=0;i<picked.length;i++){
-      let nearest=Infinity;
-      for(let j=0;j<picked.length;j++){
-        if(i===j)continue;
-        const distance=Math.max(0,1-cosine(picked[i],picked[j]));
-        nearest=Math.min(nearest,distance);
-        if(j>i)pairDistances.push(distance);
-      }
-      if(Number.isFinite(nearest))nearestDistances.push(nearest);
-    }
-
-    const duplicateRate=nearestDistances.filter(v=>v<.006).length/nearestDistances.length;
-    const duplicateFreedom=Math.max(0,Math.min(1,1-duplicateRate));
-    const spread=Math.max(0,Math.min(1,percentile(pairDistances,.75)/.15));
-    const novelty=Math.max(0,Math.min(1,percentile(nearestDistances,.50)/.045));
-    const raw=.42*spread+.38*novelty+.20*duplicateFreedom;
-    const score=Math.round(Math.max(0,Math.min(1,raw))*100);
+    const {nearest,distanceSum}=diversityDistances(samples);
+    const n=samples.length;
+    // A photo counts as repeated if any other photo looks very similar.
+    const duplicateRate=nearest.filter(distance=>distance<=nearDuplicateDistance).length/n;
+    const duplicateFreedom=1-duplicateRate;
+    const meanDistance=2*distanceSum/(n*(n-1));
+    const spread=Math.min(1,meanDistance/.75);
+    const novelty=nearest.reduce((sum,distance)=>{
+      const beyondDuplicate=Math.max(0,distance-nearDuplicateDistance);
+      return sum+Math.min(1,beyondDuplicate/.48);
+    },0)/n;
+    // Wide gaps between a few repeatedly photographed poses do not earn a high score.
+    const raw=(.45*spread+.55*novelty)*(1-.85*duplicateRate);
+    const score=Math.round(100*raw);
 
     let level,label;
     if(score<18){level='very-low';label='Fast identisch'}

@@ -137,9 +137,8 @@ function renderBars(probs){
   const identity=document.createElement('div');identity.className='prediction-identity';
   const dot=document.createElement('span');dot.className='prediction-dot';dot.textContent=i+1;
   const name=document.createElement('strong');name.textContent=classLabel(i);identity.append(dot,name);
-  const value=document.createElement('b');value.className='prediction-value';value.textContent=probs?Math.round(score*100)+' %':'—';
   const track=document.createElement('div');track.className='track prediction-track';const bar=document.createElement('i');bar.style.background=classColor(i);bar.style.width=probs?score*100+'%':'0%';track.append(bar);
-  row.append(identity,value,track);rows.append(row);
+  row.append(identity,track);rows.append(row);
  });
 }
 function updateRecognitionHero(probs,result,best){

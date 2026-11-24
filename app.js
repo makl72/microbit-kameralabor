@@ -125,10 +125,15 @@ function renderBars(probs){
  const rows=$('predictionBars');rows.replaceChildren();
  const active=classes.map((c,i)=>({c,i})).filter(({c})=>c.samples.length);
  rows.dataset.classCount=String(active.length);
- const ranked=[...active];if(probs)ranked.sort((a,b)=>(probs[b.i]||0)-(probs[a.i]||0));
- ranked.forEach(({c,i},rank)=>{
+ let leadingIndex=-1;
+ if(probs){
+  for(const {i} of active){
+   if(leadingIndex===-1||(probs[i]||0)>(probs[leadingIndex]||0))leadingIndex=i;
+  }
+ }
+ active.forEach(({i})=>{
   const score=probs?Math.max(0,Math.min(1,probs[i]||0)):0;
-  const row=document.createElement('div');row.className='predrow prediction-card'+(rank===0&&probs?' is-leading':'');row.style.setProperty('--class-color',classColor(i));row.style.setProperty('--class-text',classTextColor(i));
+  const row=document.createElement('div');row.className='predrow prediction-card'+(i===leadingIndex?' is-leading':'');row.style.setProperty('--class-color',classColor(i));row.style.setProperty('--class-text',classTextColor(i));
   const identity=document.createElement('div');identity.className='prediction-identity';
   const dot=document.createElement('span');dot.className='prediction-dot';dot.textContent=i+1;
   const name=document.createElement('strong');name.textContent=classLabel(i);identity.append(dot,name);

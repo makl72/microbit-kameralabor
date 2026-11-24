@@ -40,12 +40,12 @@
 
   // Average luminance in each cell, relative to the whole thumbnail's mean.
   function rememberLayout(sample,pixels){
-    const grid=new Float32Array(144);
+    const grid=new Float32Array(24*24);
     let sum=0;
     for(let y=0;y<96;y++)for(let x=0;x<96;x++){
       const k=4*(96*y+x);
       const light=.299*pixels[k]+.587*pixels[k+1]+.114*pixels[k+2];
-      grid[(y>>3)*12+(x>>3)]+=light/64;
+      grid[(y>>2)*24+(x>>2)]+=light/16;
       sum+=light;
     }
     const mean=sum/(96*96);
@@ -55,9 +55,24 @@
 
   function layoutDistance(a,b){
     if(!a||!b)return 0;
-    let squared=0;
-    for(let i=0;i<a.length;i++)squared+=(a[i]-b[i])**2;
-    return Math.min(1,Math.sqrt(squared/a.length)/72);
+    let squared=0,strongest=0,second=0;
+    // Compare local contrast in 12 x 12 pixel regions. Small moving features
+    // otherwise contribute very little to the whole-frame average.
+    for(let y=0;y<24;y+=3)for(let x=0;x<24;x+=3){
+      let sum=0,energy=0;
+      for(let dy=0;dy<3;dy++)for(let dx=0;dx<3;dx++){
+        const i=(y+dy)*24+x+dx;
+        const delta=a[i]-b[i];
+        sum+=delta;
+        energy+=delta*delta;
+      }
+      squared+=energy;
+      const contrast=Math.sqrt(Math.max(0,energy/9-(sum/9)**2));
+      if(contrast>strongest){second=strongest;strongest=contrast}
+      else if(contrast>second)second=contrast;
+    }
+    const local=Math.max(0,(.7*strongest+.3*second-2.5)/58);
+    return Math.min(1,Math.max(Math.sqrt(squared/a.length)/72,local));
   }
 
   function diversityDistances(samples){

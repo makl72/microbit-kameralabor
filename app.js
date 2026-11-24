@@ -67,6 +67,11 @@ function updateCards(){
   const own=recording?.i===i;card.classList.toggle('collecting',own);
   card.querySelector('.record').disabled=!stream||!base||training||cameraStarting||n>=MAX||!!recording&&!own;
   const series=card.querySelector('.series');series.disabled=!stream||!base||training||cameraStarting||!!recording&&!own||n>=MAX;series.textContent=own&&recording.series?'■ Ende':'Serie';
+  const inlineUndo=card.querySelector('.picture-undo');
+  if(inlineUndo){
+   inlineUndo.hidden=!undoDeletion||undoDeletion.slot!==i;
+   inlineUndo.disabled=restoring||training||!!recording||extracting;
+  }
   card.querySelector('.clear').disabled=restoring||training||!!recording||extracting||!n;
   card.querySelector('.gallery-open').disabled=restoring||training||!!recording||extracting||!n;card.querySelector('.gallery-open').textContent=n?'Bilder ansehen · '+n:'Bilder ansehen';
   renderPhotoStrip(i,card);

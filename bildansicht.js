@@ -13,7 +13,7 @@ if (new URLSearchParams(location.search).get('ansicht') === 'bild') {
   const main = document.querySelector('main');
   const home = document.createElement('section');
   home.className = 'picture-home';
-  home.innerHTML = '<h1 tabindex="-1">Was möchtest du tun?</h1><div class="picture-tiles"></div><a href="./">Klassische Ansicht</a>';
+  home.innerHTML = '<h1 tabindex="-1">Deine Schritte</h1><div class="picture-tiles"></div><a href="./">Klassische Ansicht</a>';
   main.prepend(home);
   const brand = document.querySelector('.brand');
   brand.querySelector('.brand-mark').innerHTML = homeIcon;
@@ -25,9 +25,12 @@ if (new URLSearchParams(location.search).get('ansicht') === 'bild') {
   });
   function setColor() {
     const active = steps.find(([id]) => document.getElementById(id).classList.contains('active'));
-    if (active) root.style.setProperty('--picture-color',active[2]);
+    if (active) {
+      root.style.setProperty('--picture-color',active[2]);
+      root.classList.toggle('picture-collect',active[0]==='stepCollect');
+    }
   }
-  for (const [id,label,color,drawing] of steps) {
+  for (const [index,[id,label,color,drawing]] of steps.entries()) {
     const tab = document.getElementById(id);
     tab.style.setProperty('--tile',color);
     tab.querySelector('.step-icon').innerHTML = icon(drawing);
@@ -35,7 +38,7 @@ if (new URLSearchParams(location.search).get('ansicht') === 'bild') {
     const tile = document.createElement('button');
     tile.className = 'picture-tile';
     tile.style.setProperty('--tile',color);
-    tile.innerHTML = icon(drawing)+'<span>'+label+'</span>';
+    tile.innerHTML = '<small>Schritt '+(index+1)+'</small>'+icon(drawing)+'<span>'+label+'</span>';
     tile.onclick = () => {
       root.classList.remove('picture-start');
       tab.click();
@@ -54,17 +57,26 @@ if (new URLSearchParams(location.search).get('ansicht') === 'bild') {
     node.before(details);
     details.append(summary,node);
   }
-  for (const selector of ['.tip','.class-name-hint','.training-meta','.mapping-intro','.microbit-visual-copy','.bit-hint']) {
+  for (const selector of ['.tip','.training-meta','.mapping-intro','.microbit-visual-copy','.bit-hint']) {
     fold(document.querySelector(selector),'💡 Tipp');
   }
   const cards = document.getElementById('classCards');
-  function foldScores() {
-    cards.querySelectorAll('.diversity').forEach(node => {
-      if (!node.closest('details')) fold(node,'🔎 Bilder prüfen');
-    });
+  function simplifyCards() {
+    for (const card of cards.children) {
+      if (card.querySelector('.picture-photos')) continue;
+      const details = document.createElement('details');
+      details.className = 'picture-tip picture-photos';
+      const summary = document.createElement('summary');
+      summary.textContent = '🖼 Meine Bilder';
+      details.append(summary,card.querySelector('.photo-review'),card.querySelector('.diversity'),card.querySelector('.clear'));
+      card.append(details);
+    }
   }
-  new MutationObserver(foldScores).observe(cards,{childList:true});
-  foldScores();
+  new MutationObserver(simplifyCards).observe(cards,{childList:true});
+  simplifyCards();
+  document.querySelector('.class-name-hint').textContent = 'Sammle 10 Bilder pro Klasse.';
+  fold(document.getElementById('removeClassBtn'),'Klassen verwalten');
+  document.getElementById('goTrain').textContent = 'Weiter →';
   document.querySelector('.camera-empty h3').textContent = 'Kamera bereit?';
   document.getElementById('goLive').textContent = 'Ausprobieren →';
   document.getElementById('trainBtn').textContent = '🤖 KI trainieren';

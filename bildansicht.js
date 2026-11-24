@@ -1,0 +1,72 @@
+// The picture view reuses the lab's existing controls and project storage.
+if (new URLSearchParams(location.search).get('ansicht') === 'bild') {
+  const steps = [
+    ['stepCollect','Bilder sammeln','#ffda69','<path d="M3 8h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13" r="3.5"/>'],
+    ['stepTrain','KI trainieren','#cdbbfa','<rect x="4" y="7" width="16" height="13" rx="4"/><path d="M12 7V3m-3 13h6"/><circle cx="8" cy="12" r="1"/><circle cx="16" cy="12" r="1"/>'],
+    ['stepLive','Ausprobieren','#ffb8a4','<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'],
+    ['stepMap','Zahlen zuordnen','#99e1dd','<circle cx="5" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><path d="M9 6h11m-3-3 3 3-3 3M9 18h11m-3-3 3 3-3 3"/>'],
+    ['stepConnect','micro:bit verbinden','#f5bad8','<path d="M8 3v5m8-5v5M6 8h12v3a6 6 0 0 1-12 0zm6 9v4"/>']
+  ];
+  const icon = drawing => '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+drawing+'</svg>';
+  const homeIcon = icon('<path d="m3 11 9-8 9 8m-16-1v11h14V10m-10 11v-7h6v7"/>');
+  const root = document.documentElement;
+  const main = document.querySelector('main');
+  const home = document.createElement('section');
+  home.className = 'picture-home';
+  home.innerHTML = '<h1 tabindex="-1">Was möchtest du tun?</h1><div class="picture-tiles"></div><a href="./">Klassische Ansicht</a>';
+  main.prepend(home);
+  const brand = document.querySelector('.brand');
+  brand.querySelector('.brand-mark').innerHTML = homeIcon;
+  brand.addEventListener('click', event => {
+    event.preventDefault();
+    if (stream || predicting || recording) stopCamera();
+    root.classList.add('picture-start');
+    home.querySelector('h1').focus();
+  });
+  function setColor() {
+    const active = steps.find(([id]) => document.getElementById(id).classList.contains('active'));
+    if (active) root.style.setProperty('--picture-color',active[2]);
+  }
+  for (const [id,label,color,drawing] of steps) {
+    const tab = document.getElementById(id);
+    tab.style.setProperty('--tile',color);
+    tab.querySelector('.step-icon').innerHTML = icon(drawing);
+    tab.lastElementChild.textContent = label;
+    const tile = document.createElement('button');
+    tile.className = 'picture-tile';
+    tile.style.setProperty('--tile',color);
+    tile.innerHTML = icon(drawing)+'<span>'+label+'</span>';
+    tile.onclick = () => {
+      root.classList.remove('picture-start');
+      tab.click();
+      tab.focus();
+    };
+    home.querySelector('.picture-tiles').append(tile);
+  }
+  new MutationObserver(setColor).observe(document.querySelector('.steps'),{attributes:true,attributeFilter:['aria-pressed'],subtree:true});
+  setColor();
+  function fold(node,label) {
+    if (!node) return;
+    const details = document.createElement('details');
+    details.className = 'picture-tip';
+    const summary = document.createElement('summary');
+    summary.textContent = label;
+    node.before(details);
+    details.append(summary,node);
+  }
+  for (const selector of ['.tip','.class-name-hint','.training-meta','.mapping-intro','.microbit-visual-copy','.bit-hint']) {
+    fold(document.querySelector(selector),'💡 Tipp');
+  }
+  const cards = document.getElementById('classCards');
+  function foldScores() {
+    cards.querySelectorAll('.diversity').forEach(node => {
+      if (!node.closest('details')) fold(node,'🔎 Bilder prüfen');
+    });
+  }
+  new MutationObserver(foldScores).observe(cards,{childList:true});
+  foldScores();
+  document.querySelector('.camera-empty h3').textContent = 'Kamera bereit?';
+  document.getElementById('goLive').textContent = 'Ausprobieren →';
+  document.getElementById('trainBtn').textContent = '🤖 KI trainieren';
+  document.getElementById('cameraBtn').textContent = '📷 Kamera starten';
+}

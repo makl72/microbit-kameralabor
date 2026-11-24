@@ -36,6 +36,30 @@
   const diversityCache=new WeakMap();
   const nearDuplicateDistance=.12;
 
+  const layouts=new WeakMap();
+
+  // Average luminance in each cell, relative to the whole thumbnail's mean.
+  function rememberLayout(sample,pixels){
+    const grid=new Float32Array(144);
+    let sum=0;
+    for(let y=0;y<96;y++)for(let x=0;x<96;x++){
+      const k=4*(96*y+x);
+      const light=.299*pixels[k]+.587*pixels[k+1]+.114*pixels[k+2];
+      grid[(y>>3)*12+(x>>3)]+=light/64;
+      sum+=light;
+    }
+    const mean=sum/(96*96);
+    for(let i=0;i<grid.length;i++)grid[i]-=mean;
+    layouts.set(sample,grid);
+  }
+
+  function layoutDistance(a,b){
+    if(!a||!b)return 0;
+    let squared=0;
+    for(let i=0;i<a.length;i++)squared+=(a[i]-b[i])**2;
+    return Math.min(1,Math.sqrt(squared/a.length)/72);
+  }
+
   function diversityDistances(samples){
     let state=diversityCache.get(samples);
     if(!state||state.rows.length>samples.length){
@@ -44,16 +68,17 @@
     }
     for(let i=state.rows.length;i<samples.length;i++){
       const row=normalize(samples[i]);
+      const layout=layouts.get(samples[i]);
       const empty=row.every(value=>value===0);
       let nearest=Infinity;
       for(let j=0;j<i;j++){
         const other=state.rows[j];
-        const distance=empty&&other.empty?0:Math.max(0,1-cosine(row,other.row));
+        const distance=Math.max(layoutDistance(layout,other.layout),empty&&other.empty?0:1-cosine(row,other.row));
         nearest=Math.min(nearest,distance);
         state.nearest[j]=Math.min(state.nearest[j],distance);
         state.distanceSum+=distance;
       }
-      state.rows.push({row,empty});
+      state.rows.push({row,empty,layout});
       state.nearest.push(nearest);
     }
     return state;
@@ -278,6 +303,8 @@
     TARGET,MIN,MAX,
     trainingReadiness,
     sampleDiversity,
+    rememberLayout,
+    refreshDiversity(samples){diversityCache.delete(samples)},
     singleProfile,
     singleScore,
     mapProbabilities,

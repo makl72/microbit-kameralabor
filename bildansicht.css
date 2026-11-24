@@ -37,3 +37,5 @@
 .picture-collect .class-tools{align-items:center;flex-wrap:wrap}
 .picture-collect .class-tools .picture-tip{margin:0}
 .picture-collect .class-name-hint{margin:3px 0 8px}
+
+.picture-mode #undoBar,.picture-mode .picture-undo[hidden]{display:none!important}

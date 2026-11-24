@@ -11,6 +11,7 @@ function isObsoleteEmptyFive(list){
  const old=['Offene Hand','Faust','Zeichen links','Zeichen rechts','Hintergrund / keine Geste'];
  return list.every((c,i)=>{const n=(c.name||'').trim();return !n||n==='Klasse '+(i+1)||n===old[i]});
 }
+let fullFrame=true;
 let classes=[makeClass(0),makeClass(1)];
 let stream=null,front=false,base=null,basePromise=null,head=null,trained=false,training=false,predicting=false,recording=null,extracting=false,cameraStarting=false,revision=0,trainMessage='',trainError=false;
 let currentCommand='STOPP',lastInference=0,lastLogged='',toastTimer;
@@ -210,9 +211,38 @@ function checkCameraFrame(){
  if(now-lastCameraRecovery<15000){stopCamera();toast('Das Kamerabild steht. Tippe auf „Kamera starten“, um es erneut zu versuchen.');return}
  lastCameraRecovery=now;clearInterval(cameraWatchTimer);cameraWatchTimer=null;toast('Kamerabild steht. Die Kamera wird neu gestartet.');startCamera();
 }
+function useFrameMode(mode){
+ fullFrame=mode==='full'||!classes.some(c=>c.samples.length);
+ $('video').style.objectFit=fullFrame?'contain':'cover';
+}
+async function readStoredLayouts(collection){
+ const surface=document.createElement('canvas');
+ surface.width=surface.height=96;
+ const context=surface.getContext('2d',{willReadFrequently:true});
+ for(const c of collection){
+  const rows=c.samples,images=c.images||[];
+  for(let i=0;i<images.length;i++){
+   if(collection!==classes)return;
+   if(!images[i])continue;
+   const image=new Image();
+   try{
+    image.src=images[i];await image.decode();
+    context.drawImage(image,0,0,96,96);
+    CameraLabCore.rememberLayout(rows[i],context.getImageData(0,0,96,96).data);
+   }catch{ /* Missing previews use the saved model features. */ }
+  }
+  CameraLabCore.refreshDiversity(c.samples);
+  if(collection===classes)updateCards();
+ }
+}
 async function features(){
  const video=$('video');if(!stream||video.readyState<2||!video.videoWidth)throw Error('Kamerabild noch nicht bereit.');
- const side=Math.min(video.videoWidth,video.videoHeight);ctx.save();if(front){ctx.translate(224,0);ctx.scale(-1,1)}ctx.drawImage(video,(video.videoWidth-side)/2,(video.videoHeight-side)/2,side,side,0,0,224,224);ctx.restore();
+ const side=Math.min(video.videoWidth,video.videoHeight);ctx.save();if(front){ctx.translate(224,0);ctx.scale(-1,1)}if(fullFrame){
+  const scale=224/Math.max(video.videoWidth,video.videoHeight);
+  const width=video.videoWidth*scale,height=video.videoHeight*scale;
+  ctx.fillStyle='#777';ctx.fillRect(0,0,224,224);
+  ctx.drawImage(video,(224-width)/2,(224-height)/2,width,height);
+ }else ctx.drawImage(video,(video.videoWidth-side)/2,(video.videoHeight-side)/2,side,side,0,0,224,224);ctx.restore();
  const tensor=base.infer(canvas,true);try{return Array.from(await tensor.data())}finally{tensor.dispose()}
 }
 async function startCapture(i,series){
@@ -222,7 +252,7 @@ async function startCapture(i,series){
  let count=0;
  while(recording?.token===token&&stream){
   extracting=true;
-  try{const row=await features();if(recording?.token!==token)break;classes[i].samples.push(row);thumbCanvas.getContext('2d').drawImage(canvas,0,0,96,96);classes[i].thumb=thumbCanvas.toDataURL('image/jpeg',0.65);if(!classes[i].images)classes[i].images=Array(classes[i].samples.length-1).fill(null);classes[i].images.push(classes[i].thumb);count++;updateCards();scheduleSave(1200);
+  try{const row=await features();if(recording?.token!==token)break;classes[i].samples.push(row);thumbCanvas.getContext('2d').drawImage(canvas,0,0,96,96);CameraLabCore.rememberLayout(row,thumbCanvas.getContext('2d').getImageData(0,0,96,96).data);classes[i].thumb=thumbCanvas.toDataURL('image/jpeg',0.65);if(!classes[i].images)classes[i].images=Array(classes[i].samples.length-1).fill(null);classes[i].images.push(classes[i].thumb);count++;updateCards();scheduleSave(1200);
    const tips=['Drehe dein Zeichen oder deinen Gegenstand leicht.','Verändere den Abstand zur Kamera.','Probiere einen anderen Hintergrund.','Halte das Zeichen auch an den Bildrand.'];
    $('tipText').textContent=tips[Math.floor(count/10)%tips.length];
    if(classes[i].samples.length>=MAX||series&&classes[i].samples.length>=TARGET){stopCapture();break}
@@ -349,7 +379,7 @@ async function connectBit(){
 }
 function projectFilename(){return CameraLabCore.projectFilename(projectName)}
 async function exportProject(){
- const project={format:'microbit-kameralabor-v1',base:'mobilenet-v1-050',name:projectName,classes,created:new Date().toISOString()};const name=projectFilename();
+ const project={format:'microbit-kameralabor-v1',base:'mobilenet-v1-050',frameMode:fullFrame?'full':'square',name:projectName,classes,created:new Date().toISOString()};const name=projectFilename();
  if(window.showSaveFilePicker){
   let handle;try{handle=await window.showSaveFilePicker({suggestedName:name,types:[{description:'Teachable-Labor-Projekt',accept:{'application/json':['.json']}}]})}catch(e){if(e.name==='AbortError')return}
   if(handle){try{const chosenName=CameraLabCore.projectNameForFile(handle.name,projectName);project.name=chosenName;const writable=await handle.createWritable();await writable.write(new Blob([JSON.stringify(project)],{type:'application/json'}));await writable.close();if(chosenName!==projectName){projectName=chosenName;$('projectName').value=projectName;await saveNow(true);$('projectFileName').textContent=projectFilename()}toast('Projektdatei '+handle.name+' im gewählten Ordner gespeichert.');return}catch(e){toast('Projektdatei konnte nicht gespeichert werden: '+e.message);return}}
@@ -362,7 +392,7 @@ async function exportProject(){
 async function importProject(file){
  if(!file)return;try{if(file.size>50000000)throw Error('Datei ist zu groß (maximal 50 MB).');const raw=JSON.parse(await file.text());const imported=CameraLabCore.validateProject(raw);if(imported.some(c=>c.samples.some(row=>row.length!==512)))throw Error('Unpassende Lernmerkmale.');
  if(classes.some(c=>c.samples.length)&&!confirm('Projektdatei „'+file.name+'“ öffnen? Das aktuelle Projekt „'+projectName+'“ wird im Browser ersetzt. Sichere es zuvor als .json, falls du es behalten möchtest.'))return;
- stopCapture();invalidate();undoDeletion=null;$('undoBar').hidden=true;projectName=CameraLabCore.projectNameForFile(file.name,raw.name);$('projectName').value=projectName;classes=imported;selectedClass=Math.max(0,classes.findIndex(c=>c.samples.length));renderCards();showPane('collect');await saveNow();$('newProjectDialog').close();
+ stopCapture();invalidate();undoDeletion=null;$('undoBar').hidden=true;projectName=CameraLabCore.projectNameForFile(file.name,raw.name);$('projectName').value=projectName;classes=imported;useFrameMode(raw.frameMode);readStoredLayouts(classes);selectedClass=Math.max(0,classes.findIndex(c=>c.samples.length));renderCards();showPane('collect');await saveNow();$('newProjectDialog').close();
  toast('Projektdatei „'+file.name+'“ geladen. Bei Bedarf erneut trainieren.');
  }catch(e){toast('Import nicht möglich: '+e.message)}finally{$('loadFile').value=''}
 }
@@ -408,7 +438,7 @@ async function restoreProject(override){
  let migratedDefault=false;
  try{
   const state=override||await LabStorage.read();if(!override)storageVersion=state?.savedAt??null;
-  if(state){const restored=CameraLabCore.validateProject(state.project);if(restored.some(c=>c.samples.some(row=>row.length!==512)))throw Error('Unpassendes lokales Projekt');classes=!override&&isObsoleteEmptyFive(restored)?[makeClass(0),makeClass(1)]:restored;migratedDefault=!override&&classes!==restored;projectName=typeof state.project.name==='string'?state.project.name.slice(0,60):'Mein Experiment';$('projectName').value=projectName;selectedClass=migratedDefault?0:Number.isInteger(state.selectedClass)&&state.selectedClass>=0&&state.selectedClass<classes.length?state.selectedClass:0;confidence=Math.max(.6,Math.min(.99,Number(state.confidence)||.85));$('threshold').value=Math.round(confidence*100);$('thresholdValue').textContent=Math.round(confidence*100)+' %';
+  if(state){const restored=CameraLabCore.validateProject(state.project);if(restored.some(c=>c.samples.some(row=>row.length!==512)))throw Error('Unpassendes lokales Projekt');classes=!override&&isObsoleteEmptyFive(restored)?[makeClass(0),makeClass(1)]:restored;useFrameMode(state.project.frameMode);readStoredLayouts(classes);migratedDefault=!override&&classes!==restored;projectName=typeof state.project.name==='string'?state.project.name.slice(0,60):'Mein Experiment';$('projectName').value=projectName;selectedClass=migratedDefault?0:Number.isInteger(state.selectedClass)&&state.selectedClass>=0&&state.selectedClass<classes.length?state.selectedClass:0;confidence=Math.max(.6,Math.min(.99,Number(state.confidence)||.85));$('threshold').value=Math.round(confidence*100);$('thresholdValue').textContent=Math.round(confidence*100)+' %';
    const status=CameraLabCore.trainingReadiness(classes);const indices=status.active.map(c=>c.index);
    if(state.model&&status.ready&&JSON.stringify(indices)===JSON.stringify(state.model.activeIndices)){
     activeIndices=indices;
@@ -420,7 +450,7 @@ async function restoreProject(override){
  }catch(e){storageHealthy=false;$('saveStatus').textContent='Lokales Speichern nicht verfügbar – bitte exportieren';$('saveStatus').classList.add('error')}
  finally{restoring=false;renderCards();showPane(currentPane,false);if(migratedDefault){$('saveStatus').textContent='✓ Neuer Start mit zwei leeren Klassen';await saveNow(true)}}
 }
-function makeSnapshot(){return {project:{format:'microbit-kameralabor-v1',base:'mobilenet-v1-050',name:projectName,classes:structuredClone(classes)},model:savedModel,selectedClass,currentPane,confidence,savedAt:Date.now()}}
+function makeSnapshot(){return {project:{format:'microbit-kameralabor-v1',base:'mobilenet-v1-050',frameMode:fullFrame?'full':'square',name:projectName,classes:structuredClone(classes)},model:savedModel,selectedClass,currentPane,confidence,savedAt:Date.now()}}
 function openGallery(slot){if(training||recording||extracting)return;stopPrediction();gallerySlot=slot;gallerySelection.clear();renderGallery();$('galleryDialog').showModal()}
 function renderGallery(){
  const c=classes[gallerySlot];$('galleryUndo').disabled=!undoDeletion||undoDeletion.slot!==gallerySlot;$('galleryTitle').textContent=(c.name.trim()||'Klasse '+(gallerySlot+1))+' · '+imageCount(c.samples.length);const grid=$('galleryGrid');grid.replaceChildren();
@@ -441,7 +471,7 @@ $('projectName').oninput=e=>{projectName=e.target.value;scheduleSave()};$('proje
 $('newProjectBtn').onclick=async()=>{if(training||restoring||extracting)return;stopCapture();stopPrediction();$('projectDialogStatus').textContent='';$('projectFileName').textContent=projectFilename();$('newProjectDialog').showModal();$('restorePrevious').disabled=!(await LabStorage.read('previous').catch(()=>null))};
 $('startNewProject').onclick=async()=>{
  if(training||restoring||extracting)return;$('startNewProject').disabled=true;
- try{stopCapture();stopPrediction();await saveNow();await LabStorage.write(makeSnapshot(),'previous');invalidate();classes=[makeClass(0),makeClass(1)];projectName=$('newProjectName').value.trim()||'Neues Experiment';$('projectName').value=projectName;selectedClass=0;undoDeletion=null;$('undoBar').hidden=true;renderCards();showPane('collect');await saveNow();$('newProjectDialog').close();toast('Neues Projekt bereit. Das vorige kannst du über „Neues Projekt“ zurückholen.')}
+ try{stopCapture();stopPrediction();await saveNow();await LabStorage.write(makeSnapshot(),'previous');invalidate();classes=[makeClass(0),makeClass(1)];useFrameMode('full');projectName=$('newProjectName').value.trim()||'Neues Experiment';$('projectName').value=projectName;selectedClass=0;undoDeletion=null;$('undoBar').hidden=true;renderCards();showPane('collect');await saveNow();$('newProjectDialog').close();toast('Neues Projekt bereit. Das vorige kannst du über „Neues Projekt“ zurückholen.')}
  catch(e){$('projectDialogStatus').textContent='Die lokale Sicherung ist nicht möglich. Exportiere zuerst dein jetziges Projekt; es wurde noch nichts verworfen.'}
  finally{$('startNewProject').disabled=false}
 };
@@ -490,5 +520,5 @@ $('connectBtn').onclick=connectBit;$('disconnectBtn').onclick=disconnectBit;
 $('bitGoLive').onclick=()=>showPane('live');
 $('testLedBtn').onclick=async()=>{if(!bitLink?.connected||bitTesting)return;bitTesting=true;$('testStatus').textContent='Zahl 2 unterwegs …';updateBitUI();try{await bitLink.send('HEART');$('testStatus').textContent='✓ micro:bit meldet OK:2. Auf den LEDs erscheint das Muster mit zwei Punkten.'}catch(e){$('testStatus').textContent='Keine Antwort auf die Zahl 2. USB-Kabel und COM-Port prüfen, dann erneut verbinden.';await disconnectBit()}finally{bitTesting=false;updateBitUI()}};
 for(const matrix of document.querySelectorAll('.led-matrix'))renderLED(matrix,matrix.dataset.pattern||'heart');
-renderCards();updateBitUI();restoreProject();
+useFrameMode('full');renderCards();updateBitUI();restoreProject();
 setTimeout(()=>{loadBase().catch(()=>{})},0);

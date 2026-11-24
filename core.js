@@ -34,7 +34,7 @@
 
   // Capture appends immutable feature rows. Deletion/import supplies a new array.
   const diversityCache=new WeakMap();
-  const nearDuplicateDistance=.14;
+  const nearDuplicateDistance=.12;
 
   function diversityDistances(samples){
     let state=diversityCache.get(samples);
@@ -77,7 +77,7 @@
     const spread=Math.min(1,meanDistance/.75);
     const novelty=nearest.reduce((sum,distance)=>{
       const beyondDuplicate=Math.max(0,distance-nearDuplicateDistance);
-      return sum+Math.min(1,beyondDuplicate/.48);
+      return sum+Math.min(1,beyondDuplicate/.46);
     },0)/n;
     // Wide gaps between a few repeatedly photographed poses do not earn a high score.
     const raw=(.45*spread+.55*novelty)*(1-.85*duplicateRate);

@@ -69,6 +69,13 @@ if (new URLSearchParams(location.search).get('ansicht') === 'bild') {
       const summary = document.createElement('summary');
       summary.textContent = '🖼 Meine Bilder';
       details.append(summary,card.querySelector('.photo-review'),card.querySelector('.diversity'),card.querySelector('.clear'));
+      const undo = document.createElement('button');
+      undo.type = 'button';
+      undo.className = 'plain picture-undo';
+      undo.textContent = 'Letzte Löschung rückgängig';
+      undo.onclick = () => document.getElementById('undoDelete').click();
+      undo.hidden = !undoDeletion || card.id !== 'class'+undoDeletion.slot;
+      details.append(undo);
       card.append(details);
     }
   }

@@ -79,8 +79,13 @@
       const beyondDuplicate=Math.max(0,distance-nearDuplicateDistance);
       return sum+Math.min(1,beyondDuplicate/.46);
     },0)/n;
+    // Grade similarity continuously around the displayed near-duplicate threshold.
+    const repeatWeight=nearest.reduce((sum,distance)=>{
+      const fraction=(2*nearDuplicateDistance-distance)/(2*nearDuplicateDistance);
+      return sum+Math.max(0,Math.min(1,fraction));
+    },0)/n;
     // Wide gaps between a few repeatedly photographed poses do not earn a high score.
-    const raw=(.45*spread+.55*novelty)*(1-.85*duplicateRate);
+    const raw=(.45*spread+.55*novelty)*(1-.85*repeatWeight);
     const score=Math.round(100*raw);
 
     let level,label;

@@ -27,3 +27,13 @@
 .picture-home>a{display:inline-block;margin-top:20px;padding:12px;color:#524864;text-decoration:underline}
 .picture-entry{color:inherit;font-weight:bold}
 @media(max-width:560px){.picture-tiles{grid-template-columns:1fr 1fr;gap:10px}.picture-tile,.picture-tile:nth-child(n+4){grid-column:auto;min-height:108px}.picture-tile:first-child{grid-column:span 2}.picture-tile svg{width:36px;height:36px}.picture-mode .steps button{min-width:0}.picture-mode .steps .step-icon svg{width:19px;height:19px}}
+
+.picture-tile small{font-size:14px;line-height:1.2;color:#383245}
+.picture-collect .camera-empty h3,.picture-collect #collectPane .remaining,.picture-collect #collectPane .count small,.picture-collect #collectPane .collect-footer>span,.picture-collect #collectPane .photo-review-head strong,.picture-collect #cameraPanel .camera-foot button:disabled,.picture-collect #cameraPanel #switchCam:disabled{display:none}
+.picture-collect .collect-footer{justify-content:flex-end}
+.picture-photos{padding:0 10px}
+.picture-photos[open]{background:#fff;border-radius:12px;padding-bottom:10px}
+.picture-photos .diversity{margin:10px 0}
+.picture-collect .class-tools{align-items:center;flex-wrap:wrap}
+.picture-collect .class-tools .picture-tip{margin:0}
+.picture-collect .class-name-hint{margin:3px 0 8px}

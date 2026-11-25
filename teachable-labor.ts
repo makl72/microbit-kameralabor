@@ -1,98 +1,68 @@
 /**
- * Teachable Labor
- * Die App sendet die Zahlen 1 bis 10.
- * USB-Serial, Bluetooth-UART, PING/PONG und OK-Bestaetigungen bleiben
- * in dieser Erweiterung verborgen. Im Schuelerprojekt sind nur die
- * zehn Ereignisbloecke sichtbar.
+ * Teachable Labor: USB serial and Bluetooth UART share one line protocol.
  */
-
 //% color="#7B24C9" block="Teachable Labor" weight=100
 namespace teachableLabor {
-    const EVENT_SOURCE = 9100
     let started = false
-    let actionRunning = false
-    let activeNumber = 0
-    let queuedNumber = 0
-
-    function commandNumber(value: string): number {
-        if (value == "1") return 1
-        if (value == "2") return 2
-        if (value == "3") return 3
-        if (value == "4") return 4
-        if (value == "5") return 5
-        if (value == "6") return 6
-        if (value == "7") return 7
-        if (value == "8") return 8
-        if (value == "9") return 9
-        if (value == "10") return 10
-        return 0
-    }
-
-    function processCommand(value: string, viaBluetooth: boolean): void {
-        if (value == "PING") {
-            if (viaBluetooth) bluetooth.uartWriteLine("PONG")
-            else serial.writeLine("PONG")
-            return
-        }
-
-        const number = commandNumber(value)
-        if (number == 0) return
-
-        const answer = "OK:" + value
-        if (viaBluetooth) bluetooth.uartWriteLine(answer)
-        else serial.writeLine(answer)
-
-        control.raiseEvent(EVENT_SOURCE, number)
-    }
-
-    function startCommunication(): void {
-        if (started) return
-        started = true
-
-        serial.redirectToUSB()
-        serial.setBaudRate(115200)
-        bluetooth.startUartService()
-
-        serial.onDataReceived("\n", function () {
-            processCommand(serial.readUntil("\n"), false)
-        })
-        bluetooth.onUartDataReceived("\n", function () {
-            processCommand(bluetooth.uartReadUntil("\n"), true)
-        })
-    }
+    let running = 0
+    let waiting = 0
+    const numbers: number[] = []
+    const actions: (() => void)[] = []
 
     function register(number: number, handler: () => void): void {
-        startCommunication()
-        control.onEvent(EVENT_SOURCE, number, function () {
-            // MakeCode-Ereignisse koennen nebenlaeufig laufen. Lange Aktionen wie
-            // Toene oder Melodien duerfen deshalb nicht mit der naechsten
-            // Erkennung ueberlappen. Waehren eine Aktion laeuft, merken wir uns
-            // nur die zuletzt eingegangene andere Zahl.
-            if (actionRunning) {
-                queuedNumber = number == activeNumber ? 0 : number
-                return
-            }
+        numbers.push(number)
+        actions.push(handler)
+        start()
+    }
 
-            actionRunning = true
-            activeNumber = number
-            handler()
-            activeNumber = 0
-            actionRunning = false
-
-            if (queuedNumber != 0) {
-                const next = queuedNumber
-                queuedNumber = 0
-                control.raiseEvent(EVENT_SOURCE, next)
+    function schedule(number: number): void {
+        if (running != 0) {
+            waiting = number == running ? 0 : number
+            return
+        }
+        running = number
+        control.inBackground(function () {
+            while (running != 0) {
+                for (let i = 0; i < numbers.length; i++) {
+                    if (numbers[i] == running) actions[i]()
+                }
+                running = waiting
+                waiting = 0
             }
         })
     }
 
-    /**
-     * Startet die Kommunikation. Wird vom Schuelerprojekt unsichtbar aufgerufen.
-     */
+    function receive(line: string, wireless: boolean): void {
+        if (line.length > 0 && line.charAt(line.length - 1) == "\r") {
+            line = line.substr(0, line.length - 1)
+        }
+        let number = 0
+        let reply = "PONG"
+        if (line != "PING") {
+            for (let i = 1; i <= 10; i++) {
+                if (line == "" + i) number = i
+            }
+            if (number == 0) return
+            reply = "OK:" + line
+        }
+        if (wireless) bluetooth.uartWriteString(reply + "\n")
+        else serial.writeString(reply + "\n")
+        if (number != 0) schedule(number)
+    }
+
     //% blockHidden=true
     export function start(): void {
-        startCommunication()
+        if (started) return
+        started = true
+        serial.redirectToUSB()
+        serial.setBaudRate(115200)
+        serial.onDataReceived("\n", function () {
+            receive(serial.readUntil("\n"), false)
+        })
+        bluetooth.startUartService()
+        bluetooth.onUartDataReceived("\n", function () {
+            receive(bluetooth.uartReadUntil("\n"), true)
+        })
     }
 
     /**
@@ -185,6 +155,5 @@ namespace teachableLabor {
         register(10, handler)
     }
 
-    // Kommunikation startet automatisch, ohne sichtbaren Block im Schuelerprojekt.
-    startCommunication()
+    start()
 }

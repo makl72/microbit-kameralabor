@@ -378,19 +378,27 @@ async function sendCurrent(){
   if(link.connected){try{await link.probe();reachable=true}catch(probeError){}}
   if(link!==bitLink)return;
   if(reachable){$('linkLiveStatus').textContent='micro:bit: Verbindung steht noch. Letzter Befehl wurde nicht bestätigt.';if(currentClass>=0)$('liveDelivery').textContent='Nicht bestätigt · Erkennung erneut zeigen'}
-  else{await link.disconnect();bitLink=null;bitReady=false;$('bitStatus').textContent='micro:bit antwortet nicht mehr. USB-Kabel und COM-Port prüfen, dann erneut verbinden.';$('linkLiveStatus').textContent='micro:bit: Keine Antwort auf PING. Bitte erneut verbinden.';if(currentClass>=0)$('liveDelivery').textContent='micro:bit getrennt';updateBitUI()}
+  else{await link.disconnect();if(bitLink!==link)return;bitLink=null;bitReady=false;$('bitStatus').textContent='micro:bit antwortet nicht mehr. USB-Kabel und COM-Port prüfen, dann erneut verbinden.';$('linkLiveStatus').textContent='micro:bit: Keine Antwort auf PING. Bitte erneut verbinden.';if(currentClass>=0)$('liveDelivery').textContent='micro:bit getrennt';updateBitUI()}
  }}
  finally{sending=false}
 }
-function onBitDisconnect(error){const link=bitLink;bitLink=null;bitReady=false;const detail=link instanceof MicrobitTransport.USBLink?'USB getrennt: '+(error?.message||'Kabel und COM-Port prüfen.'):'Verbindung getrennt.';$('bitStatus').textContent=detail;$('linkLiveStatus').textContent='micro:bit: '+detail+' Die KI erkennt weiter.';if(currentClass>=0)$('liveDelivery').textContent='Vorschau · micro:bit getrennt';updateBitUI();if(link)void link.disconnect()}
-async function disconnectBit(){if(bitLink)await bitLink.disconnect();bitLink=null;bitReady=false;$('bitStatus').textContent='Noch nicht verbunden.';if(currentClass>=0)$('liveDelivery').textContent='Vorschau · micro:bit nicht verbunden';updateBitUI()}
+function onBitDisconnect(error){bitConnecting=false;const link=bitLink;bitLink=null;bitReady=false;const detail=link instanceof MicrobitTransport.USBLink?'USB getrennt: '+(error?.message||'Kabel und COM-Port prüfen.'):'Verbindung getrennt.';$('bitStatus').textContent=detail;$('linkLiveStatus').textContent='micro:bit: '+detail+' Die KI erkennt weiter.';if(currentClass>=0)$('liveDelivery').textContent='Vorschau · micro:bit getrennt';updateBitUI();if(link)void link.disconnect()}
+let bitClosing=false;
+async function disconnectBit(){
+ if(bitClosing)return;
+ const link=bitLink,wasConnecting=bitConnecting;
+ bitClosing=true;bitLink=null;bitReady=false;bitConnecting=false;bitTesting=false;
+ $('bitError').hidden=true;$('testStatus').textContent='Verbinde zuerst deinen micro:bit.';
+ $('bitStatus').textContent='Verbindung wird getrennt …';updateBitUI();
+ try{await link?.disconnect()}finally{bitClosing=false;updateBitUI()}
+ $('bitStatus').textContent=wasConnecting?'Abgebrochen · micro:bit getrennt.':'micro:bit getrennt.';$('linkLiveStatus').textContent='micro:bit getrennt.';if(currentClass>=0)$('liveDelivery').textContent='Vorschau · micro:bit nicht verbunden';updateBitUI()}
 async function connectBit(){
- if(bitConnecting||bitLink?.connected)return;stopPrediction();bitConnecting=true;$('bitError').hidden=true;$('bitStatus').textContent='Warte auf den micro:bit und seine Antwort …';updateBitUI();
+ if(bitClosing||bitConnecting||bitLink?.connected)return;stopPrediction();bitConnecting=true;$('bitError').hidden=true;$('bitStatus').textContent='Warte auf den micro:bit und seine Antwort …';updateBitUI();
  const link=bitMode==='native'?new MicrobitTransport.NativeLink(window.webkit.messageHandlers.microbit,onBitDisconnect):bitMode==='usb'?new MicrobitTransport.USBLink(navigator.serial,onBitDisconnect):new MicrobitTransport.BLELink(navigator.bluetooth,onBitDisconnect);
  bitLink=link;
- try{const name=await link.connect();resetCommandLatch();bitReady=true;$('bitStatus').textContent='✓ '+name+' antwortet auf PING. Verbindung bereit.';$('testStatus').textContent='Jetzt „2 senden und Antwort prüfen“ tippen.';$('linkLiveStatus').textContent='micro:bit: Verbindung bereit.'}
- catch(e){bitReady=false;$('bitStatus').textContent='Noch nicht verbunden.';const cancelled=e.name==='NotFoundError'||/no port selected|user cancelled|user canceled/i.test(e.message||'');$('bitError').textContent=cancelled?bitMode==='usb'?'Auswahl abgebrochen. Wähle den micro:bit-Anschluss und versuche es erneut.':'Auswahl abgebrochen. Prüfe Taste A am micro:bit und versuche es erneut.':e.message||'Verbindung fehlgeschlagen. Schülerprogramm und Verbindung prüfen.';$('bitError').hidden=false;await link.disconnect();if(bitLink===link)bitLink=null}
- finally{bitConnecting=false;updateBitUI()}
+ try{const name=await link.connect();if(link!==bitLink)return;resetCommandLatch();bitReady=true;$('bitStatus').textContent='✓ '+name+' antwortet auf PING. Verbindung bereit.';$('testStatus').textContent='Jetzt „2 senden und Antwort prüfen“ tippen.';$('linkLiveStatus').textContent='micro:bit: Verbindung bereit.'}
+ catch(e){if(link!==bitLink)return;bitReady=false;$('bitStatus').textContent='Noch nicht verbunden.';const cancelled=e.name==='NotFoundError'||/no port selected|user cancelled|user canceled/i.test(e.message||'');$('bitError').textContent=cancelled?bitMode==='usb'?'Auswahl abgebrochen. Wähle den micro:bit-Anschluss und versuche es erneut.':'Auswahl abgebrochen. Prüfe Taste A am micro:bit und versuche es erneut.':e.message||'Verbindung fehlgeschlagen. Schülerprogramm und Verbindung prüfen.';$('bitError').hidden=false;await link.disconnect();if(bitLink===link){bitLink=null;bitConnecting=false}}
+ finally{if(bitLink===link)bitConnecting=false;updateBitUI()}
 }
 function projectFilename(){return CameraLabCore.projectFilename(projectName)}
 async function exportProject(){
@@ -501,7 +509,7 @@ const numberPatterns={number1:[4,12,4,4,14],number2:[14,17,2,4,31],number3:[30,1
 function renderLED(element,pattern){if(!element)return;const rows=numberPatterns[pattern]||patterns[pattern]||patterns.square;if(!element.children.length)for(let i=0;i<25;i++)element.append(document.createElement('i'));[...element.children].forEach((led,i)=>led.classList.toggle('lit',!!(rows[Math.floor(i/5)]&(1<<(4-i%5)))));element.dataset.pattern=pattern}
 function renderNumberLED(element,symbol){if(!symbol){renderLED(element,'off');return}renderLED(element,'number'+(actionNumbers[symbol]||'1'))}
 function updateBitUI(){
- const connected=!!bitLink?.connected;$('connectBtn').disabled=bitConnecting||connected;$('connectBtn').textContent=bitConnecting?'Verbinde …':bitMode==='usb'?'micro:bit über USB verbinden':bitMode==='native'?'micro:bit in iPad-App verbinden':'micro:bit über Bluetooth verbinden';$('disconnectBtn').hidden=!connected;$('testLedBtn').disabled=!connected||!bitReady||bitTesting;$('testLedBtn').textContent=bitTesting?'Warte auf Antwort …':'2 senden und Antwort prüfen';$('bitGoLive').disabled=!trained||training;
+ const connected=!!bitLink?.connected;$('connectBtn').disabled=bitClosing||bitConnecting||connected;$('connectBtn').textContent=bitConnecting?'Verbinde …':bitMode==='usb'?'micro:bit über USB verbinden':bitMode==='native'?'micro:bit in iPad-App verbinden':'micro:bit über Bluetooth verbinden';$('disconnectBtn').hidden=bitClosing||(!bitConnecting&&!connected);$('disconnectBtn').textContent=bitConnecting?'Abbrechen':'Trennen';$('usbTab').disabled=bitClosing;$('bleTab').disabled=bitClosing;$('testLedBtn').disabled=!connected||!bitReady||bitTesting;$('testLedBtn').textContent=bitTesting?'Warte auf Antwort …':'2 senden und Antwort prüfen';$('bitGoLive').disabled=!trained||training;
  updateConnectionBadge();
  $('usbTab').hidden=bitMode==='native';$('bleTab').hidden=bitMode==='native';$('usbTab').classList.toggle('active',bitMode==='usb');$('bleTab').classList.toggle('active',bitMode==='ble');$('usbTab').setAttribute('aria-pressed',String(bitMode==='usb'));$('bleTab').setAttribute('aria-pressed',String(bitMode==='ble'));
  $('modeHint').textContent=bitMode==='native'?'iPad-App erkannt. Übertrage zuerst das aktuelle Teachable-Labor-Schülerprogramm auf den micro:bit.':bitMode==='usb'?'Windows erkannt: USB-Datenkabel verwenden und im Browser den seriellen micro:bit-Anschluss wählen.':'iPad erkannt: Diese Seite in Bluefy öffnen. Vorher das aktuelle Teachable-Labor-Schülerprogramm auf den micro:bit übertragen.';
@@ -533,7 +541,7 @@ $('usbTab').onclick=async()=>{if(bitMode==='usb')return;await disconnectBit();bi
 $('bleTab').onclick=async()=>{if(bitMode==='ble')return;await disconnectBit();bitMode='ble';$('bitError').hidden=true;updateBitUI()};
 $('connectBtn').onclick=connectBit;$('disconnectBtn').onclick=disconnectBit;
 $('bitGoLive').onclick=()=>showPane('live');
-$('testLedBtn').onclick=async()=>{if(!bitLink?.connected||bitTesting)return;bitTesting=true;$('testStatus').textContent='Zahl 2 unterwegs …';updateBitUI();try{await bitLink.send('HEART');$('testStatus').textContent='✓ micro:bit meldet OK:2. Auf den LEDs erscheint das Muster mit zwei Punkten.'}catch(e){$('testStatus').textContent='Keine Antwort auf die Zahl 2. USB-Kabel und COM-Port prüfen, dann erneut verbinden.';await disconnectBit()}finally{bitTesting=false;updateBitUI()}};
+$('testLedBtn').onclick=async()=>{if(!bitLink?.connected||bitTesting)return;const link=bitLink;bitTesting=true;$('testStatus').textContent='Zahl 2 unterwegs …';updateBitUI();try{await link.send('HEART');if(link!==bitLink)return;$('testStatus').textContent='✓ micro:bit meldet OK:2. Auf den LEDs erscheint das Muster mit zwei Punkten.'}catch(e){if(link!==bitLink)return;$('testStatus').textContent='Keine Antwort auf die Zahl 2. USB-Kabel und COM-Port prüfen, dann erneut verbinden.';await disconnectBit()}finally{if(bitLink===link)bitTesting=false;updateBitUI()}};
 for(const matrix of document.querySelectorAll('.led-matrix'))renderLED(matrix,matrix.dataset.pattern||'heart');
 useFrameMode('full');renderCards();updateBitUI();restoreProject();
 setTimeout(()=>{loadBase().catch(()=>{})},0);

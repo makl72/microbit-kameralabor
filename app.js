@@ -535,7 +535,46 @@ function renderBitMappings(){
   select.value=getClassSymbol(i)||'';select.onchange=()=>setClassSymbol(i,select.value);label.append(name,select);row.classList.toggle('unassigned',!getClassSymbol(i));row.append(matrix,label);container.append(row)
  });
 }
-function openTeacher(){stopPrediction();$('setupDialog').showModal()}
+let studentFilePromise;
+function prepareStudentFile(){
+ const link=$('studentDownload'),button=$('saveStudentFile'),status=$('studentSaveStatus');
+ const fallback=message=>{status.textContent=message;link.hidden=false;link.style.display='';button.hidden=true};
+ const canPick=typeof window.showSaveFilePicker==='function';
+ if(!canPick&&!(navigator.share&&navigator.canShare)){
+  fallback('Der Browser verwaltet den Download. Am Computer: Rechtsklick auf den Link → „Link speichern unter …“.');return;
+ }
+ if(!studentFilePromise){
+  studentFilePromise=fetch(link.href).then(async response=>{
+   if(!response.ok)throw Error('Download fehlgeschlagen');
+   const blob=await response.blob();
+   return new File([blob],link.download,{type:'application/octet-stream'});
+  });
+ }
+ button.hidden=false;button.disabled=true;link.style.display='none';status.textContent='Datei wird vorbereitet …';
+ studentFilePromise.then(file=>{
+  if(!canPick&&!navigator.canShare({files:[file]})){fallback('Für diesen Dateityp verwaltet der Browser den Download.');return}
+  status.textContent=canPick?'':'Im Teilen-Menü „In Dateien sichern“ und den Ordner wählen.';
+  button.disabled=false;
+  button.onclick=async()=>{
+   button.disabled=true;
+   try{
+    if(canPick){
+     const handle=await window.showSaveFilePicker({suggestedName:file.name,types:[{description:'MakeCode-Schülerprogramm',accept:{'application/octet-stream':['.mkcd']}}]});
+     const writer=await handle.createWritable();
+     await writer.write(file);await writer.close();
+     status.textContent='Gespeichert: '+handle.name;
+    }else{
+     await navigator.share({files:[file]});
+     status.textContent='Datei an das Teilen-Menü übergeben.';
+    }
+   }catch(error){
+    if(error.name==='AbortError'){status.textContent='Speichern abgebrochen.'}
+    else fallback('Speicherauswahl nicht verfügbar. Nutze den Download-Link.');
+   }finally{button.disabled=false}
+  };
+ }).catch(()=>{studentFilePromise=null;fallback('Datei konnte nicht vorbereitet werden. Nutze den Download-Link.')});
+}
+function openTeacher(){stopPrediction();$('setupDialog').showModal();prepareStudentFile()}
 $('teacherBtn').onclick=openTeacher;$('teacherQuick').onclick=openTeacher;
 $('usbTab').onclick=async()=>{if(bitMode==='usb')return;await disconnectBit();bitMode='usb';$('bitError').hidden=true;updateBitUI()};
 $('bleTab').onclick=async()=>{if(bitMode==='ble')return;await disconnectBit();bitMode='ble';$('bitError').hidden=true;updateBitUI()};

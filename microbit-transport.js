@@ -6,18 +6,24 @@
  const encoder=new TextEncoder();
  class Link{
   constructor(onDisconnect=()=>{},timeout=3500){this.onDisconnect=onDisconnect;this.timeout=timeout;this.connected=false;this.pending=null;this.chain=Promise.resolve();this.buffer='';this.decoder=new TextDecoder();this.closing=false}
-  async probe(){try{await this.send('PING')}catch(e){await new Promise(resolve=>setTimeout(resolve,350));await this.send('PING')}}
+  checkOpen(){if(this.closing)throw Error('Verbindung abgebrochen')}
+  disconnect(){
+   if(!this.cleanup){this.closing=true;this.connected=false;this.fail(Error('Verbindung getrennt'));this.cleanup=this.close()}
+   return this.cleanup;
+  }
+  async probe(){try{await this.send('PING')}catch(e){this.checkOpen();await new Promise(resolve=>setTimeout(resolve,350));await this.send('PING')}}
   receive(bytes){this.buffer+=this.decoder.decode(bytes,{stream:true});if(this.buffer.length>512)this.buffer=this.buffer.slice(-128);let index;while((index=this.buffer.indexOf('\n'))>=0){const line=this.buffer.slice(0,index).replace(/\r/g,'').trim();this.buffer=this.buffer.slice(index+1);if(this.pending&&line===this.pending.expected){this.pending.resolve(line);this.pending=null}}}
   fail(error){if(this.pending){this.pending.reject(error);this.pending=null}if(this.connected&&!this.closing){this.connected=false;this.onDisconnect(error)}}
   send(command){if(!this.connected)return Promise.reject(Error('Nicht verbunden'));if(command!=='PING'&&!Object.hasOwn(COMMAND_CODES,command))return Promise.reject(Error('Unbekannter Befehl'));
    const task=async()=>{if(!this.connected)throw Error('Verbindung getrennt');const wireCommand=command==='PING'?'PING':COMMAND_CODES[command];const expected=command==='PING'?'PONG':'OK:'+wireCommand;let timer;const response=new Promise((resolve,reject)=>{this.pending={expected,resolve,reject};timer=setTimeout(()=>{if(this.pending?.expected===expected){this.pending=null;reject(Error('Der micro:bit antwortet nicht. Schülerprogramm und Verbindung prüfen.'))}},this.timeout)});
+    response.catch(()=>{});
     try{await this.write(encoder.encode(wireCommand+'\n'));return await response}catch(e){if(this.pending?.expected===expected){this.pending=null}response.catch(()=>{});throw e}finally{clearTimeout(timer)}};
    const promise=this.chain.then(task);this.chain=promise.catch(()=>{});return promise;
   }
  }
  class USBLink extends Link{
   constructor(serial,onDisconnect,timeout){super(onDisconnect,timeout);this.serial=serial;this.port=null;this.reader=null}
-  async connect(){if(!this.serial?.requestPort)throw Error('USB aus Webseiten braucht Chrome oder Edge auf Windows.');this.port=await this.serial.requestPort();try{await this.port.open({baudRate:115200});if(!this.port.readable||!this.port.writable)throw Error('Kein serieller USB-Anschluss. Wähle den micro:bit-Anschluss.');this.connected=true;this.closing=false;this.pump=this.readLoop();await this.probe();return 'USB'}catch(e){await this.disconnect();throw e}}
+  async connect(){if(!this.serial?.requestPort)throw Error('USB aus Webseiten braucht Chrome oder Edge auf Windows.');const port=await this.serial.requestPort();this.checkOpen();this.port=port;try{this.opening=port.open({baudRate:115200});await this.opening;this.checkOpen();if(!this.port.readable||!this.port.writable)throw Error('Kein serieller USB-Anschluss. Wähle den micro:bit-Anschluss.');this.connected=true;this.pump=this.readLoop();await this.probe();return 'USB'}catch(e){await this.disconnect();throw e}}
   async readLoop(){
    let error=Error('USB-Verbindung unterbrochen. Kabel, Stromversorgung und COM-Port prüfen.');
    let consecutiveEnds=0;
@@ -69,19 +75,19 @@
    finally{if(!this.closing&&this.connected)this.fail(error)}
   }
   async write(bytes){const writer=this.port.writable.getWriter();try{await writer.write(bytes)}finally{writer.releaseLock()}}
-  async disconnect(){this.closing=true;this.connected=false;this.fail(Error('USB getrennt'));try{await this.reader?.cancel()}catch(e){}try{await this.pump}catch(e){}try{await this.port?.close()}catch(e){}this.port=null}
+  async close(){try{await this.opening}catch(e){}try{await this.reader?.cancel()}catch(e){}try{await this.pump}catch(e){}try{await this.port?.close()}catch(e){}this.port=null}
  }
  class NativeLink extends Link{
   constructor(bridge,onDisconnect,timeout){super(onDisconnect,timeout);this.bridge=bridge;this.listener=e=>{const d=e.detail||{};if(d.type==='line')this.receive(encoder.encode(d.value+'\n'));if(d.type==='disconnected')this.fail(Error('Bluetooth getrennt'));if(d.type==='ready'&&this.ready){this.ready.resolve();this.ready=null}if(d.type==='error'&&this.ready){this.ready.reject(Error(d.value||'Bluetooth-Verbindung fehlgeschlagen'));this.ready=null}}}
-  async connect(){if(!this.bridge?.postMessage)throw Error('Native iPad-App erforderlich.');window.addEventListener('microbit-native',this.listener);let timer;try{const ready=new Promise((resolve,reject)=>{this.ready={resolve,reject};timer=setTimeout(()=>{this.ready=null;reject(Error('micro:bit nicht gefunden. Schülerprogramm und Bluetooth prüfen.'))},20000)});this.bridge.postMessage({op:'connect'});await ready;this.connected=true;await this.probe();return 'micro:bit (iPad-App)'}catch(e){await this.disconnect();throw e}finally{clearTimeout(timer)}}
+  async connect(){if(!this.bridge?.postMessage)throw Error('Native iPad-App erforderlich.');window.addEventListener('microbit-native',this.listener);let timer;try{const ready=new Promise((resolve,reject)=>{this.ready={resolve,reject};timer=setTimeout(()=>{this.ready=null;reject(Error('micro:bit nicht gefunden. Schülerprogramm und Bluetooth prüfen.'))},20000)});this.bridge.postMessage({op:'connect'});await ready;this.checkOpen();this.connected=true;await this.probe();return 'micro:bit (iPad-App)'}catch(e){await this.disconnect();throw e}finally{clearTimeout(timer)}}
   async write(bytes){this.bridge.postMessage({op:'write',value:new TextDecoder().decode(bytes)})}
-  async disconnect(){this.closing=true;this.connected=false;this.fail(Error('Bluetooth getrennt'));this.bridge?.postMessage({op:'disconnect'});window.removeEventListener('microbit-native',this.listener)}
+  async close(){if(this.ready){this.ready.reject(Error('Verbindung abgebrochen'));this.ready=null}this.bridge?.postMessage({op:'disconnect'});window.removeEventListener('microbit-native',this.listener)}
  }
  class BLELink extends Link{
   constructor(bluetooth,onDisconnect,timeout){super(onDisconnect,timeout);this.bluetooth=bluetooth;this.device=null;this.rx=null;this.tx=null;this.gattDisconnected=()=>this.fail(Error('Bluetooth getrennt'));this.onValue=e=>this.receive(new Uint8Array(e.target.value.buffer,e.target.value.byteOffset,e.target.value.byteLength))}
-  async connect(){if(!this.bluetooth?.requestDevice)throw Error('Auf dem iPad diese Seite in Bluefy öffnen. Safari bietet hier keine Bluetooth-Verbindung.');this.device=await this.bluetooth.requestDevice({filters:[{namePrefix:'BBC micro:bit'}],optionalServices:[SERVICE]});try{this.device.addEventListener('gattserverdisconnected',this.gattDisconnected);const server=await this.device.gatt.connect();let service;try{service=await server.getPrimaryService(SERVICE)}catch(e){throw Error('Bluetooth-Gerät gefunden, aber der UART-Dienst des Teachable-Labor-Schülerprogramms ist nicht verfügbar. Das aktuelle Schülerprogramm auf den micro:bit übertragen und einmal Reset drücken.')}this.tx=await service.getCharacteristic(TX);this.rx=await service.getCharacteristic(RX);this.tx.addEventListener('characteristicvaluechanged',this.onValue);await this.tx.startNotifications();this.connected=true;this.closing=false;await this.probe();return this.device.name||'micro:bit'}catch(e){await this.disconnect();throw e}}
+  async connect(){if(!this.bluetooth?.requestDevice)throw Error('Auf dem iPad diese Seite in Bluefy öffnen. Safari bietet hier keine Bluetooth-Verbindung.');const device=await this.bluetooth.requestDevice({filters:[{namePrefix:'BBC micro:bit'}],optionalServices:[SERVICE]});this.checkOpen();this.device=device;try{this.device.addEventListener('gattserverdisconnected',this.gattDisconnected);this.opening=device.gatt.connect();const server=await this.opening;this.checkOpen();let service;try{service=await server.getPrimaryService(SERVICE)}catch(e){throw Error('Bluetooth-Gerät gefunden, aber der UART-Dienst des Teachable-Labor-Schülerprogramms ist nicht verfügbar. Das aktuelle Schülerprogramm auf den micro:bit übertragen und einmal Reset drücken.')}this.checkOpen();const tx=await service.getCharacteristic(TX);const rx=await service.getCharacteristic(RX);this.checkOpen();this.tx=tx;this.rx=rx;this.tx.addEventListener('characteristicvaluechanged',this.onValue);await this.tx.startNotifications();this.checkOpen();this.connected=true;await this.probe();return this.device.name||'micro:bit'}catch(e){await this.disconnect();throw e}}
   async write(bytes){if(this.rx.writeValueWithResponse)await this.rx.writeValueWithResponse(bytes);else await this.rx.writeValue(bytes)}
-  async disconnect(){this.closing=true;this.connected=false;this.fail(Error('Bluetooth getrennt'));try{this.tx?.removeEventListener('characteristicvaluechanged',this.onValue)}catch(e){}try{this.device?.gatt?.disconnect()}catch(e){}this.rx=null;this.tx=null;this.device=null}
+  async close(){const device=this.device;try{this.tx?.removeEventListener('characteristicvaluechanged',this.onValue)}catch(e){}device?.removeEventListener('gattserverdisconnected',this.gattDisconnected);try{device?.gatt?.disconnect();await this.opening;if(device?.gatt?.connected)device.gatt.disconnect()}catch(e){}this.rx=null;this.tx=null;this.device=null}
  }
  return {SERVICE,TX,RX,symbols,COMMAND_CODES,USBLink,BLELink,NativeLink};
 });

@@ -382,13 +382,15 @@ async function sendCurrent(){
  }}
  finally{sending=false}
 }
-function onBitDisconnect(error){bitConnecting=false;const link=bitLink;bitLink=null;bitReady=false;const detail=link instanceof MicrobitTransport.USBLink?'USB getrennt: '+(error?.message||'Kabel und COM-Port prüfen.'):'Verbindung getrennt.';$('bitStatus').textContent=detail;$('linkLiveStatus').textContent='micro:bit: '+detail+' Die KI erkennt weiter.';if(currentClass>=0)$('liveDelivery').textContent='Vorschau · micro:bit getrennt';updateBitUI();if(link)void link.disconnect()}
+function onBitDisconnect(error){
+ if(bitTesting)$('testStatus').textContent='Verbindung während des Tests getrennt. Keine Bestätigung für Zahl 2.';
+ bitTesting=false;bitConnecting=false;const link=bitLink;bitLink=null;bitReady=false;const detail=link instanceof MicrobitTransport.USBLink?'USB getrennt: '+(error?.message||'Kabel und COM-Port prüfen.'):'Verbindung getrennt.';$('bitStatus').textContent=detail;$('linkLiveStatus').textContent='micro:bit: '+detail+' Die KI erkennt weiter.';if(currentClass>=0)$('liveDelivery').textContent='Vorschau · micro:bit getrennt';updateBitUI();if(link)void link.disconnect()}
 let bitClosing=false;
-async function disconnectBit(){
+async function disconnectBit(testMessage){
  if(bitClosing)return;
  const link=bitLink,wasConnecting=bitConnecting;
  bitClosing=true;bitLink=null;bitReady=false;bitConnecting=false;bitTesting=false;
- $('bitError').hidden=true;$('testStatus').textContent='Verbinde zuerst deinen micro:bit.';
+ $('bitError').hidden=true;$('testStatus').textContent=typeof testMessage==='string'?testMessage:'Verbinde zuerst deinen micro:bit.';
  $('bitStatus').textContent='Verbindung wird getrennt …';updateBitUI();
  try{await link?.disconnect()}finally{bitClosing=false;updateBitUI()}
  $('bitStatus').textContent=wasConnecting?'Abgebrochen · micro:bit getrennt.':'micro:bit getrennt.';$('linkLiveStatus').textContent='micro:bit getrennt.';if(currentClass>=0)$('liveDelivery').textContent='Vorschau · micro:bit nicht verbunden';updateBitUI()}
@@ -580,7 +582,30 @@ $('usbTab').onclick=async()=>{if(bitMode==='usb')return;await disconnectBit();bi
 $('bleTab').onclick=async()=>{if(bitMode==='ble')return;await disconnectBit();bitMode='ble';$('bitError').hidden=true;updateBitUI()};
 $('connectBtn').onclick=connectBit;$('disconnectBtn').onclick=disconnectBit;
 $('bitGoLive').onclick=()=>showPane('live');
-$('testLedBtn').onclick=async()=>{if(!bitLink?.connected||bitTesting)return;const link=bitLink;bitTesting=true;$('testStatus').textContent='Zahl 2 unterwegs …';updateBitUI();try{await link.send('HEART');if(link!==bitLink)return;$('testStatus').textContent='✓ micro:bit meldet OK:2. Auf den LEDs erscheint das Muster mit zwei Punkten.'}catch(e){if(link!==bitLink)return;$('testStatus').textContent='Keine Antwort auf die Zahl 2. USB-Kabel und COM-Port prüfen, dann erneut verbinden.';await disconnectBit()}finally{if(bitLink===link)bitTesting=false;updateBitUI()}};
+$('testLedBtn').onclick=async()=>{
+ const link=bitLink;
+ if(!link?.connected||!bitReady||bitTesting)return;
+ bitTesting=true;
+ const status=$('testStatus');
+ status.textContent='Zahl 2 unterwegs …';
+ updateBitUI();
+ try{
+  await link.send('HEART');
+  if(bitLink===link)status.textContent='✓ micro:bit meldet OK:2. Empfang bestätigt.';
+ }catch(error){
+  if(bitLink!==link)return;
+  status.textContent='Keine Bestätigung für Zahl 2. Prüfe die Verbindung …';
+  try{
+   await link.probe();
+   if(bitLink===link)status.textContent='micro:bit erreichbar. Bestätigung für Zahl 2 fehlt.';
+  }catch(probeError){
+   if(bitLink===link)await disconnectBit('Keine Antwort auf Zahl 2 oder auf den Verbindungstest.');
+  }
+ }finally{
+  if(bitLink===link)bitTesting=false;
+  updateBitUI();
+ }
+};
 for(const matrix of document.querySelectorAll('.led-matrix'))renderLED(matrix,matrix.dataset.pattern||'heart');
 useFrameMode('full');renderCards();updateBitUI();restoreProject();
 setTimeout(()=>{loadBase().catch(()=>{})},0);

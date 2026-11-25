@@ -317,6 +317,7 @@ async function predictLoop(myRevision,mySerial){
 function startPrediction(){
  if(!trained||!stream||training||recording||cameraStarting||predicting)return;
  $('resultBadge').hidden=true;
+ resetCommandLatch();
  predicting=true;const mySerial=++predictSerial,myRevision=revision;gate.reset();lastInference=performance.now();
  if(testTarget<0)nextTestChallenge();updateControls();
  const previous=predictionTask;
@@ -342,23 +343,37 @@ function updateConnectionBadge(state){
  badge.textContent=badge.dataset.state==='ready'?'● micro:bit ✓':badge.dataset.state==='connecting'?'◌ micro:bit …':'○ micro:bit aus';
  badge.setAttribute('aria-label',badge.dataset.state==='ready'?'micro:bit verbunden – Verbindung öffnen':badge.dataset.state==='connecting'?'micro:bit verbindet – Verbindung öffnen':'micro:bit nicht verbunden – Verbindung öffnen');
 }
+let lastDispatchedSymbol=null;
+let noCommandSince=null;
+function resetCommandLatch(){
+ lastDispatchedSymbol=null;
+ noCommandSince=null;
+}
+function trackCommandPresence(symbol,now){
+ if(symbol){noCommandSince=null;return}
+ if(noCommandSince===null)noCommandSince=now;
+ if(now-noCommandSince>=1500)lastDispatchedSymbol=null;
+}
 function setCommand(command,reason,slot=-1){
  const symbol=slot>=0?getClassSymbol(slot):null;const changed=currentSymbol!==symbol;const previousClass=currentClass;currentCommand=command;currentClass=slot;currentSymbol=symbol;
+ trackCommandPresence(symbol,performance.now());
  $('currentCommand').textContent=slot>=0?classLabel(slot):'—';$('liveAction').textContent=slot>=0?(actionNumbers[symbol]||'keine Aktion'):'keine Aktion';
  if(slot<0)$('liveDelivery').textContent='';
  else if(!symbol)$('liveDelivery').textContent='Für diese Klasse ist keine micro:bit-Zahl zugeordnet';
  else if(!bitReady||!bitLink?.connected)$('liveDelivery').textContent='Vorschau · micro:bit nicht verbunden';
+ else if(changed&&symbol===lastDispatchedSymbol)$('liveDelivery').textContent='Bereits gesendet';
  else if(!changed&&previousClass!==slot)$('liveDelivery').textContent='✓ bereits angezeigt';
  else if(changed)$('liveDelivery').textContent='Wird gesendet …';
- $('commandReason').textContent=reason;log(command);if(symbol&&changed&&bitLink?.connected&&bitReady)sendCurrent();
+ $('commandReason').textContent=reason;log(command);if(symbol&&changed&&symbol!==lastDispatchedSymbol&&bitLink?.connected&&bitReady)sendCurrent();
 }
 async function sendCurrent(){
  if(!bitLink?.connected||!bitReady||!currentSymbol)return;if(sending){pendingSymbol=true;return}sending=true;
  const link=bitLink;
- try{do{pendingSymbol=false;const value=currentSymbol?currentSymbol.toUpperCase():'';if(currentClass>=0)$('liveDelivery').textContent='Wird gesendet …';await link.send(value);if(link===bitLink){$('linkLiveStatus').textContent='micro:bit: Zahl '+actionNumbers[value.toLowerCase()]+' bestätigt.';if(currentSymbol&&value===currentSymbol.toUpperCase()&&currentClass>=0)$('liveDelivery').textContent='✓ micro:bit bestätigt'}}while(pendingSymbol&&link===bitLink&&link.connected)}
+ try{do{pendingSymbol=false;if(!currentSymbol||currentSymbol===lastDispatchedSymbol)break;lastDispatchedSymbol=currentSymbol;const value=currentSymbol.toUpperCase();if(currentClass>=0)$('liveDelivery').textContent='Wird gesendet …';await link.send(value);if(link===bitLink){$('linkLiveStatus').textContent='micro:bit: Zahl '+actionNumbers[value.toLowerCase()]+' bestätigt.';if(currentSymbol&&value===currentSymbol.toUpperCase()&&currentClass>=0)$('liveDelivery').textContent='✓ micro:bit bestätigt'}}while(pendingSymbol&&link===bitLink&&link.connected)}
  catch(e){if(link===bitLink){
   $('linkLiveStatus').textContent='micro:bit: Antwort ausgeblieben. Verbindung wird geprüft …';
   if(currentClass>=0)$('liveDelivery').textContent='Antwort wird geprüft';
+  resetCommandLatch();
   let reachable=false;
   if(link.connected){try{await link.probe();reachable=true}catch(probeError){}}
   if(link!==bitLink)return;
@@ -373,7 +388,7 @@ async function connectBit(){
  if(bitConnecting||bitLink?.connected)return;stopPrediction();bitConnecting=true;$('bitError').hidden=true;$('bitStatus').textContent='Warte auf den micro:bit und seine Antwort …';updateBitUI();
  const link=bitMode==='native'?new MicrobitTransport.NativeLink(window.webkit.messageHandlers.microbit,onBitDisconnect):bitMode==='usb'?new MicrobitTransport.USBLink(navigator.serial,onBitDisconnect):new MicrobitTransport.BLELink(navigator.bluetooth,onBitDisconnect);
  bitLink=link;
- try{const name=await link.connect();bitReady=true;$('bitStatus').textContent='✓ '+name+' antwortet auf PING. Verbindung bereit.';$('testStatus').textContent='Jetzt „2 senden und Antwort prüfen“ tippen.';$('linkLiveStatus').textContent='micro:bit: Verbindung bereit.'}
+ try{const name=await link.connect();resetCommandLatch();bitReady=true;$('bitStatus').textContent='✓ '+name+' antwortet auf PING. Verbindung bereit.';$('testStatus').textContent='Jetzt „2 senden und Antwort prüfen“ tippen.';$('linkLiveStatus').textContent='micro:bit: Verbindung bereit.'}
  catch(e){bitReady=false;$('bitStatus').textContent='Noch nicht verbunden.';const cancelled=e.name==='NotFoundError'||/no port selected|user cancelled|user canceled/i.test(e.message||'');$('bitError').textContent=cancelled?bitMode==='usb'?'Auswahl abgebrochen. Wähle den micro:bit-Anschluss und versuche es erneut.':'Auswahl abgebrochen. Prüfe Taste A am micro:bit und versuche es erneut.':e.message||'Verbindung fehlgeschlagen. Schülerprogramm und Verbindung prüfen.';$('bitError').hidden=false;await link.disconnect();if(bitLink===link)bitLink=null}
  finally{bitConnecting=false;updateBitUI()}
 }

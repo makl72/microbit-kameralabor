@@ -29,13 +29,12 @@ Die Erweiterung uebernimmt im Hintergrund:
 - OK-Antworten fuer Zahlen 1 bis 10
 - serialisierte Ereignisse, damit laengere Aktionen wie Toene oder Melodien nicht unkontrolliert ueberlappen
 
-## iPad
+## MakeCode und Übertragung
 
-Bluefy trennen -> Projekt in der offiziellen micro:bit-App bearbeiten und per Bluetooth uebertragen -> micro:bit-App verlassen -> micro:bit Reset -> Teachable Labor wieder in Bluefy verbinden.
+Für das Schülerprogramm mit Bluetooth und dem normalen Musikblock „spiele Ton“ verwenden wir [MakeCode 7](https://makecode.microbit.org/v7). Im Editor das Projekt importieren und als HEX herunterladen. Hintergrund: [MakeCode-Fehler 070 bei Bluetooth und Musik](https://github.com/microsoft/pxt-microbit/issues/6629).
 
-## Windows
-
-MakeCode im Browser verwenden und den micro:bit per USB uebertragen bzw. mit Teachable Labor per Web Serial verbinden.
+- iPad: Die erzeugte HEX-Datei mit der micro:bit-App öffnen, Bluefy trennen und die gespeicherte Datei unter „My Programs“ mit „Send to micro:bit“ übertragen. Danach wieder in Bluefy verbinden.
+- Windows: Das in MakeCode 7 erzeugte Programm per USB übertragen und das Labor per Web Serial verbinden.
 
 ## MakeCode-Erweiterung
 

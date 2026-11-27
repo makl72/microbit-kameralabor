@@ -494,9 +494,12 @@ $('selectAllImages').onclick=()=>{const c=classes[gallerySlot];gallerySelection=
 $('deleteSelectedImages').onclick=()=>deleteImages(gallerySlot,[...gallerySelection]);
 $('projectName').oninput=e=>{projectName=e.target.value;scheduleSave()};$('projectName').onblur=e=>{projectName=e.target.value.trim()||'Mein Experiment';e.target.value=projectName;scheduleSave()};
 $('newProjectBtn').onclick=async()=>{if(training||restoring||extracting)return;stopCapture();stopPrediction();$('projectDialogStatus').textContent='';$('projectFileName').textContent=projectFilename();$('newProjectDialog').showModal();$('restorePrevious').disabled=!(await LabStorage.read('previous').catch(()=>null))};
-$('startNewProject').onclick=async()=>{
+$('newProjectForm').onsubmit=async event=>{
+ event.preventDefault();
+ const name=$('newProjectName').value.trim();
+ if(!name||$('startNewProject').disabled)return;
  if(training||restoring||extracting)return;$('startNewProject').disabled=true;
- try{stopCapture();stopPrediction();await saveNow();await LabStorage.write(makeSnapshot(),'previous');invalidate();classes=[makeClass(0),makeClass(1)];useFrameMode('full');projectName=$('newProjectName').value.trim()||'Neues Experiment';$('projectName').value=projectName;selectedClass=0;undoDeletion=null;$('undoBar').hidden=true;renderCards();showPane('collect');await saveNow();$('newProjectDialog').close();toast('Neues Projekt bereit. Das vorige kannst du über „Neues Projekt“ zurückholen.')}
+ try{stopCapture();stopPrediction();await saveNow();await LabStorage.write(makeSnapshot(),'previous');invalidate();classes=[makeClass(0),makeClass(1)];useFrameMode('full');projectName=name;$('projectName').value=projectName;selectedClass=0;undoDeletion=null;$('undoBar').hidden=true;renderCards();showPane('collect');await saveNow();$('newProjectDialog').close();$('newProjectName').value='';toast('Neues Projekt bereit. Das vorige kannst du über „Neues Projekt“ zurückholen.')}
  catch(e){$('projectDialogStatus').textContent='Die lokale Sicherung ist nicht möglich. Exportiere zuerst dein jetziges Projekt; es wurde noch nichts verworfen.'}
  finally{$('startNewProject').disabled=false}
 };

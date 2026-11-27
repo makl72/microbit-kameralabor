@@ -85,3 +85,5 @@
 #homeResume strong,#homeResume span{display:block;overflow-wrap:anywhere}
 #homeResume[hidden],#homeStatus:empty{display:none}
 @media(max-width:600px){.home-projects{grid-template-columns:1fr}}
+
+.picture-start:not(.step-selection) .step-overview,.step-selection .picture-home:not(.step-overview){display:none}

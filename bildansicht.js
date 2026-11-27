@@ -13,31 +13,41 @@
   const requestFull = root.requestFullscreen || root.webkitRequestFullscreen;
   const exitFull = document.exitFullscreen || document.webkitExitFullscreen;
   const fullAllowed = document.fullscreenEnabled ?? document.webkitFullscreenEnabled;
-  if (requestFull && exitFull && fullAllowed !== false) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'plain fullscreen-button';
+  const button = document.querySelector('.fullscreen-button');
+  if (button) {
     const isFull = () => Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+    const expanded = () => root.classList.contains('expanded-lab');
     function updateFullscreen() {
-      const active = isFull();
-      const label = active ? 'Vollbild beenden' : 'Vollbild';
-      const corners = active ? 'M9 3v6H3m18 0h-6V3M3 15h6v6m6 0v-6h6' : 'M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6';
-      button.innerHTML = icon('<path d="'+corners+'"/>')+'<span>'+label+'</span>';
+      const active = isFull() || expanded();
+      const label = active ? (expanded() ? 'Großansicht beenden' : 'Vollbild beenden') : 'Vollbild';
       button.title = label;
-      button.setAttribute('aria-label',label);
+      button.setAttribute('aria-label', label);
+      button.querySelector('span').textContent = label;
+      button.querySelector('path').setAttribute('d', active ? 'M9 3v6H3m18 0h-6V3M3 15h6v6m6 0v-6h6' : 'M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6');
+    }
+    function expandLab() {
+      root.classList.add('expanded-lab');
+      toast('Großansicht aktiv. Die Browserleiste bleibt sichtbar.');
     }
     button.onclick = async () => {
-      try {
-        if (isFull()) await exitFull.call(document);
-        else await requestFull.call(root);
-      } catch {
-        toast('Der Browser erlaubt diesen Vollbildwechsel gerade nicht.');
-      }
+      if (expanded()) root.classList.remove('expanded-lab');
+      else if (isFull()) {
+        try { await exitFull.call(document); }
+        catch { toast('Beende das Vollbild über deinen Browser.'); }
+      } else if (requestFull && exitFull && fullAllowed !== false) {
+        try { await requestFull.call(root); }
+        catch { expandLab(); }
+      } else expandLab();
       updateFullscreen();
     };
-    document.querySelector('.header-actions').append(button);
     document.addEventListener('fullscreenchange',updateFullscreen);
     document.addEventListener('webkitfullscreenchange',updateFullscreen);
+    document.addEventListener('keydown',event => {
+      if (event.key === 'Escape' && expanded()) {
+        root.classList.remove('expanded-lab');
+        updateFullscreen();
+      }
+    });
     updateFullscreen();
   }
   const main = document.querySelector('main');

@@ -17,7 +17,7 @@
 .picture-start,.picture-start body{background:#f8f5ee}
 .picture-start body{overflow:auto}
 .picture-start main{display:block;height:auto;max-width:860px;margin:auto;padding:clamp(16px,4vw,48px)}
-.picture-start main>.workspace,.picture-start main>.app-toolbar,.picture-start header .project-name,.picture-start .header-actions,.picture-mode .picture-entry{display:none!important}
+.picture-start main>.workspace,.picture-start main>.app-toolbar,.picture-start header .project-name,.picture-start .header-actions>:not(.fullscreen-button),.picture-mode .picture-entry{display:none!important}
 .picture-start .picture-home{display:block;text-align:center}
 .picture-home h1{font-size:clamp(26px,5vw,42px);letter-spacing:-.04em;margin:8px 0 25px}
 .picture-tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}
@@ -41,3 +41,7 @@
 .picture-mode #undoBar,.picture-mode .picture-undo[hidden]{display:none!important}
 
 .picture-mode #testChallenge{display:none}
+
+.picture-mode .fullscreen-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:44px;flex-shrink:0}
+.fullscreen-button svg{width:22px;height:22px}
+@media(max-width:700px){.fullscreen-button span{display:none}}

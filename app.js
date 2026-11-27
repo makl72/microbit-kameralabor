@@ -505,8 +505,8 @@ function refreshProjectHome(){
 }
 function enterProject(){
  hasCurrentProject=true;
- document.documentElement.classList.remove('picture-start');
- document.querySelector('.steps .active')?.focus();
+ document.documentElement.classList.add('picture-start','step-selection');
+ $('overviewHeading').focus();
 }
 $('homeResume').onclick=enterProject;
 $('homeFile').onclick=()=>$('loadFile').click();

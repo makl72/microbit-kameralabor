@@ -10,6 +10,36 @@
   const icon = drawing => '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+drawing+'</svg>';
   const homeIcon = icon('<path d="m3 11 9-8 9 8m-16-1v11h14V10m-10 11v-7h6v7"/>');
   const root = document.documentElement;
+  const requestFull = root.requestFullscreen || root.webkitRequestFullscreen;
+  const exitFull = document.exitFullscreen || document.webkitExitFullscreen;
+  const fullAllowed = document.fullscreenEnabled ?? document.webkitFullscreenEnabled;
+  if (requestFull && exitFull && fullAllowed !== false) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'plain fullscreen-button';
+    const isFull = () => Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+    function updateFullscreen() {
+      const active = isFull();
+      const label = active ? 'Vollbild beenden' : 'Vollbild';
+      const corners = active ? 'M9 3v6H3m18 0h-6V3M3 15h6v6m6 0v-6h6' : 'M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6';
+      button.innerHTML = icon('<path d="'+corners+'"/>')+'<span>'+label+'</span>';
+      button.title = label;
+      button.setAttribute('aria-label',label);
+    }
+    button.onclick = async () => {
+      try {
+        if (isFull()) await exitFull.call(document);
+        else await requestFull.call(root);
+      } catch {
+        toast('Der Browser erlaubt diesen Vollbildwechsel gerade nicht.');
+      }
+      updateFullscreen();
+    };
+    document.querySelector('.header-actions').append(button);
+    document.addEventListener('fullscreenchange',updateFullscreen);
+    document.addEventListener('webkitfullscreenchange',updateFullscreen);
+    updateFullscreen();
+  }
   const main = document.querySelector('main');
   const home = document.createElement('section');
   home.className = 'picture-home';

@@ -87,3 +87,7 @@
 @media(max-width:600px){.home-projects{grid-template-columns:1fr}}
 
 .picture-start:not(.step-selection) .step-overview,.step-selection .picture-home:not(.step-overview){display:none}
+
+.step-selection header .fullscreen-button{display:none}
+.step-overview .fullscreen-button{margin:0 0 18px;font-size:16px}
+.step-overview .fullscreen-button span{display:inline}

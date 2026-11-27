@@ -17,9 +17,28 @@
   if (fullscreenButtons.length) {
     const isFull = () => Boolean(document.fullscreenElement || document.webkitFullscreenElement);
     const expanded = () => root.classList.contains('expanded-lab');
+    const pickers = document.querySelectorAll('.project-picker input[type=file]');
+    for (const input of pickers) {
+      input.addEventListener('click', async event => {
+        const status = document.getElementById(input.id === 'homeFile' ? 'homeStatus' : 'projectDialogStatus');
+        status.textContent = '';
+        if (!isFull()) return;
+        event.preventDefault();
+        status.textContent = 'Tippe nach dem Vollbildwechsel auf „Datei wählen“.';
+        try {
+          await exitFull.call(document);
+        } catch {
+          if (isFull()) status.textContent = 'Beende das Vollbild und tippe dann auf „Datei wählen“.';
+        }
+      });
+    }
     function updateFullscreen() {
       const active = isFull() || expanded();
       const label = active ? (expanded() ? 'Großansicht beenden' : 'Vollbild beenden') : 'Vollbild';
+      for (const input of pickers) {
+        const caption = input.parentElement.querySelector('.picker-label');
+        if (caption) caption.textContent = isFull() ? 'Zum Dateiöffnen Vollbild verlassen' : 'Datei wählen';
+      }
       for (const button of fullscreenButtons) {
         button.title = label;
         button.setAttribute('aria-label', label);

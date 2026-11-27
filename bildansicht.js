@@ -56,6 +56,7 @@
   brand.addEventListener('click', event => {
     event.preventDefault();
     if (stream || predicting || recording) stopCamera();
+    root.classList.remove('step-selection');
     refreshProjectHome();
     root.classList.add('picture-start');
     home.querySelector('h1').focus();
@@ -67,11 +68,27 @@
       root.classList.toggle('picture-collect',active[0]==='stepCollect');
     }
   }
-  for (const [id,label,color,drawing] of steps) {
+  document.getElementById('showOverview').onclick = () => {
+    if (stream || predicting || recording) stopCamera();
+    enterProject();
+  };
+  const tiles = document.querySelector('.picture-tiles');
+  for (const [index,[id,label,color,drawing]] of steps.entries()) {
     const tab = document.getElementById(id);
     tab.style.setProperty('--tile',color);
     tab.querySelector('.step-icon').innerHTML = icon(drawing);
     tab.lastElementChild.textContent = label;
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'picture-tile';
+    tile.style.setProperty('--tile',color);
+    tile.innerHTML = '<small>Schritt '+(index+1)+'</small>'+icon(drawing)+'<span>'+label+'</span>';
+    tile.onclick = () => {
+      root.classList.remove('picture-start','step-selection');
+      tab.click();
+      tab.focus();
+    };
+    tiles.append(tile);
 
   }
   new MutationObserver(setColor).observe(document.querySelector('.steps'),{attributes:true,attributeFilter:['aria-pressed'],subtree:true});

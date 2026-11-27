@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="de" class="picture-mode picture-start">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#6523a8"><title>Teachable Labor – KI mit dem micro:bit</title><link rel="stylesheet" href="style.css?v=19"><link rel="stylesheet" href="teachable-theme.css?v=13"><script defer src="vendor/tf.min.js"></script><script defer src="microbit-transport.js?v=25"></script><script defer src="core.js?v=27"></script><script defer src="storage.js?v=12"></script><script defer src="app.js?v=44"></script><link rel="stylesheet" href="bildansicht.css?v=7"><script defer src="bildansicht.js?v=6"></script></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#6523a8"><title>Teachable Labor – KI mit dem micro:bit</title><link rel="stylesheet" href="style.css?v=19"><link rel="stylesheet" href="teachable-theme.css?v=13"><script defer src="vendor/tf.min.js"></script><script defer src="microbit-transport.js?v=25"></script><script defer src="core.js?v=27"></script><script defer src="storage.js?v=12"></script><script defer src="app.js?v=45"></script><link rel="stylesheet" href="bildansicht.css?v=8"><script defer src="bildansicht.js?v=6"></script></head>
 <body>
 <header><div class="brand-wrap"><a class="brand" href="#" aria-label="Teachable Labor – Startseite"><span class="brand-mark" aria-hidden="true">✦</span><span class="brand-titles"><b>Teachable Labor</b><small>Trainiere deine eigene KI mit dem micro:bit.</small></span></a><input id="projectName" class="project-name" aria-label="Projektname" maxlength="60" value="Mein Experiment"></div><div class="header-actions"><button type="button" class="plain fullscreen-button" aria-label="Vollbild" title="Vollbild"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6"/></svg><span>Vollbild</span></button><button id="bitConnectionBadge" class="bit-connection-badge" data-state="offline" type="button" aria-label="micro:bit-Verbindung öffnen">○ micro:bit verbinden</button><span id="saveStatus" class="privacy" role="status">Lokales Projekt wird geladen …</span><button id="helpBtn" class="plain">So geht’s ↗</button><span class="header-giraffe giraffe-matrix led-matrix" data-pattern="giraffe" aria-label="Giraffe aus LED-Punkten" role="img"></span></div></header>
 <main>
@@ -18,10 +18,10 @@
 <dialog id="newProjectDialog" aria-labelledby="projectDialogTitle">
 <button type="button" class="close" aria-label="Schließen">×</button>
 <h2 id="projectDialogTitle">Neues Projekt</h2>
-<div class="project-launch">
-<button type="button" id="startNewProject" class="project-action"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H5v20h14V7z M14 2v6h5 M9 14h6 M12 11v6"/></svg>Neu starten</button>
-<details><summary>Projekt benennen</summary><label class="new-name-label">Name<input id="newProjectName" maxlength="60" value="Mein nächstes Experiment"></label></details>
-</div>
+<form id="newProjectForm" class="project-launch">
+<label class="new-name-label">Projektname<input id="newProjectName" maxlength="60" required pattern=".*\S.*" title="Gib deinem Projekt einen Namen." placeholder="z. B. Tierdetektiv"></label>
+<button type="submit" id="startNewProject" class="project-action"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H5v20h14V7z M14 2v6h5 M9 14h6 M12 11v6"/></svg>Neu starten</button>
+</form>
 <div class="project-choices">
 <button type="button" id="saveBtn" class="project-action"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3h13l4 4v14H3V3z M7 3v6h9V3 M7 21v-8h10v8"/></svg>Datei speichern</button>
 <button type="button" id="loadBtn" class="project-action"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17V5h7l2 3h8v3 M3 20l3-9h16l-3 9z"/></svg>Datei öffnen</button>

@@ -73,3 +73,15 @@
 #newProjectDialog .project-back:disabled{display:none}
 #newProjectDialog .project-back svg{width:20px;height:20px}
 #projectDialogStatus:empty{display:none}
+
+.home-projects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.home-project{display:flex;flex-direction:column;justify-content:center;gap:14px;margin:0;padding:clamp(16px,3vw,28px);border:2px solid #37304e;border-radius:20px;background:#ffda69;box-shadow:0 4px 0 #37304e;color:#302847}
+.home-open{background:#99e1dd}
+.home-project label,.home-project h2{display:grid;justify-items:center;gap:8px;margin:0;font:800 clamp(19px,3vw,26px)/1.2 system-ui;color:inherit}
+.home-project svg{width:44px;height:44px}
+.home-project input{width:100%;box-sizing:border-box}
+.home-open button{min-height:46px;border:2px solid #37304e;border-radius:12px;background:white;color:#302847;font:700 16px/1.25 system-ui;padding:8px}
+#homeResume{background:#37304e;color:white}
+#homeResume strong,#homeResume span{display:block;overflow-wrap:anywhere}
+#homeResume[hidden],#homeStatus:empty{display:none}
+@media(max-width:600px){.home-projects{grid-template-columns:1fr}}

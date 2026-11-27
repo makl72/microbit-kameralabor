@@ -45,3 +45,10 @@
 .picture-mode .fullscreen-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:44px;flex-shrink:0}
 .fullscreen-button svg{width:22px;height:22px}
 @media(max-width:700px){.fullscreen-button span{display:none}}
+
+.picture-mode .fullscreen-button{background:#fff;border:2px solid #37304e;border-radius:12px;color:#37304e;padding:6px 10px}
+.picture-start .header-actions{width:auto;margin-left:auto}
+.expanded-lab body{margin:0}
+.expanded-lab header{height:auto;min-height:44px;padding-block:0}
+.expanded-lab header .privacy,.expanded-lab header .project-name{display:none}
+.expanded-lab main{width:100%;max-width:none;margin-inline:0;padding:6px}

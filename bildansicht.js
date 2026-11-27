@@ -1,5 +1,5 @@
 // The picture view reuses the lab's existing controls and project storage.
-if (new URLSearchParams(location.search).get('ansicht') === 'bild') {
+(() => {
   const steps = [
     ['stepCollect','Bilder sammeln','#ffda69','<path d="M3 8h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13" r="3.5"/>'],
     ['stepTrain','KI trainieren','#cdbbfa','<rect x="4" y="7" width="16" height="13" rx="4"/><path d="M12 7V3m-3 13h6"/><circle cx="8" cy="12" r="1"/><circle cx="16" cy="12" r="1"/>'],
@@ -13,7 +13,7 @@ if (new URLSearchParams(location.search).get('ansicht') === 'bild') {
   const main = document.querySelector('main');
   const home = document.createElement('section');
   home.className = 'picture-home';
-  home.innerHTML = '<h1 tabindex="-1">Deine Schritte</h1><div class="picture-tiles"></div><a href="./">Klassische Ansicht</a>';
+  home.innerHTML = '<h1 tabindex="-1">Deine Schritte</h1><div class="picture-tiles"></div>';
   main.prepend(home);
   const brand = document.querySelector('.brand');
   brand.querySelector('.brand-mark').innerHTML = homeIcon;
@@ -88,4 +88,4 @@ if (new URLSearchParams(location.search).get('ansicht') === 'bild') {
   document.getElementById('goLive').textContent = 'Ausprobieren →';
   document.getElementById('trainBtn').textContent = '🤖 KI trainieren';
   document.getElementById('cameraBtn').textContent = '📷 Kamera starten';
-}
+})();

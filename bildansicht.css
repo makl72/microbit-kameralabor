@@ -58,7 +58,8 @@
 #newProjectDialog .project-action{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:68px;padding:10px;border:2px solid #37304e;border-radius:14px;color:#302847;font:inherit;font-weight:750}
 #newProjectDialog svg{width:30px;height:30px;flex:none}
 #startNewProject{background:#ffda69}
-.project-launch summary,.project-info summary{padding:10px 0;cursor:pointer}
+.project-launch{display:grid;gap:10px}
+.project-info summary{padding:10px 0;cursor:pointer}
 .project-launch input{width:100%;box-sizing:border-box}
 .project-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0}
 .project-choices .project-action{flex-direction:column;text-align:center}

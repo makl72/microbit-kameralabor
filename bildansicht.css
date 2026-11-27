@@ -91,3 +91,9 @@
 .step-selection header .fullscreen-button{display:none}
 .step-overview .fullscreen-button{margin:0 0 18px;font-size:16px}
 .step-overview .fullscreen-button span{display:inline}
+
+/* Keep Home clear of the browser's native fullscreen exit control on tablets. */
+@media (any-pointer: coarse){
+  .picture-mode:fullscreen header{padding-left:calc(90px + env(safe-area-inset-left, 0px))}
+  .picture-mode:-webkit-full-screen header{padding-left:calc(90px + env(safe-area-inset-left, 0px))}
+}

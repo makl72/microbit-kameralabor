@@ -13,23 +13,25 @@
   const requestFull = root.requestFullscreen || root.webkitRequestFullscreen;
   const exitFull = document.exitFullscreen || document.webkitExitFullscreen;
   const fullAllowed = document.fullscreenEnabled ?? document.webkitFullscreenEnabled;
-  const button = document.querySelector('.fullscreen-button');
-  if (button) {
+  const fullscreenButtons = document.querySelectorAll('.fullscreen-button');
+  if (fullscreenButtons.length) {
     const isFull = () => Boolean(document.fullscreenElement || document.webkitFullscreenElement);
     const expanded = () => root.classList.contains('expanded-lab');
     function updateFullscreen() {
       const active = isFull() || expanded();
       const label = active ? (expanded() ? 'Großansicht beenden' : 'Vollbild beenden') : 'Vollbild';
-      button.title = label;
-      button.setAttribute('aria-label', label);
-      button.querySelector('span').textContent = label;
-      button.querySelector('path').setAttribute('d', active ? 'M9 3v6H3m18 0h-6V3M3 15h6v6m6 0v-6h6' : 'M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6');
+      for (const button of fullscreenButtons) {
+        button.title = label;
+        button.setAttribute('aria-label', label);
+        button.querySelector('span').textContent = label;
+        button.querySelector('path').setAttribute('d', active ? 'M9 3v6H3m18 0h-6V3M3 15h6v6m6 0v-6h6' : 'M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6');
+      }
     }
     function expandLab() {
       root.classList.add('expanded-lab');
       toast('Großansicht aktiv. Die Browserleiste bleibt sichtbar.');
     }
-    button.onclick = async () => {
+    async function toggleFullscreen() {
       if (expanded()) root.classList.remove('expanded-lab');
       else if (isFull()) {
         try { await exitFull.call(document); }
@@ -39,7 +41,8 @@
         catch { expandLab(); }
       } else expandLab();
       updateFullscreen();
-    };
+    }
+    for (const button of fullscreenButtons) button.onclick = toggleFullscreen;
     document.addEventListener('fullscreenchange',updateFullscreen);
     document.addEventListener('webkitfullscreenchange',updateFullscreen);
     document.addEventListener('keydown',event => {

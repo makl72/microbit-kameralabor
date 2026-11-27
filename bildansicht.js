@@ -24,7 +24,7 @@
         button.title = label;
         button.setAttribute('aria-label', label);
         button.querySelector('span').textContent = label;
-        button.querySelector('path').setAttribute('d', active ? 'M9 3v6H3m18 0h-6V3M3 15h6v6m6 0v-6h6' : 'M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6');
+        button.querySelector('path').setAttribute('d', active ? 'M3 4h18l-7 8v7l-4 2v-9z' : 'M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6');
       }
     }
     function expandLab() {

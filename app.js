@@ -415,12 +415,15 @@ async function exportProject(){
  if(navigator.share&&navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file],title:'Teachable-Labor-Projekt sichern'});toast('Projektdatei über die Teilen-Auswahl übergeben.');return}catch(e){if(e.name==='AbortError')return}}
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1500);toast('Projektdatei heruntergeladen. Suche in „Downloads“ nach '+name+'.');
 }
-async function importProject(file){
+async function importProject(event){
+ const input=event.currentTarget,file=input.files[0];
+ const status=input.id==='homeFile'?$('homeStatus'):$('projectDialogStatus');
+ status.textContent='';
  if(!file)return;try{if(file.size>50000000)throw Error('Datei ist zu groß (maximal 50 MB).');const raw=JSON.parse(await file.text());const imported=CameraLabCore.validateProject(raw);if(imported.some(c=>c.samples.some(row=>row.length!==512)))throw Error('Unpassende Lernmerkmale.');
  if(classes.some(c=>c.samples.length)&&!confirm('Projektdatei „'+file.name+'“ öffnen? Das aktuelle Projekt „'+projectName+'“ wird im Browser ersetzt. Sichere es zuvor als .json, falls du es behalten möchtest.'))return;
  stopCapture();invalidate();undoDeletion=null;$('undoBar').hidden=true;projectName=CameraLabCore.projectNameForFile(file.name,raw.name);$('projectName').value=projectName;classes=imported;useFrameMode(raw.frameMode);readStoredLayouts(classes);selectedClass=Math.max(0,classes.findIndex(c=>c.samples.length));renderCards();showPane('collect');await saveNow();$('newProjectDialog').close();
  enterProject();toast('Projektdatei „'+file.name+'“ geladen. Bei Bedarf erneut trainieren.');
- }catch(e){toast('Import nicht möglich: '+e.message)}finally{$('loadFile').value=''}
+ }catch(e){status.textContent='Datei konnte nicht geöffnet werden. '+e.message}finally{input.value=''}
 }
 $('cameraBtn').onclick=startCamera;$('switchCam').onclick=()=>{front=!front;startCamera()};$('restartCam').onclick=startCamera;$('stopCam').onclick=stopCamera;
 $('stepCollect').onclick=()=>showPane('collect');$('goTrain').onclick=()=>showPane('train');$('goLive').onclick=()=>showPane('live');$('stepLive').onclick=()=>showPane('live');
@@ -429,7 +432,7 @@ $('bitConnectionBadge').onclick=()=>showPane('connect');
 $('trainBtn').onclick=train;$('predictBtn').onclick=()=>predicting?stopPrediction():startPrediction();
 $('threshold').oninput=e=>{confidence=Number(e.target.value)/100;$('thresholdValue').textContent=e.target.value+' %';scheduleSave();gate.reset();setCommand('STOPP','Neue Erkennungsschwelle · Zeichen erneut zeigen')};
 $('emergencyBtn').onclick=()=>{stopCapture();stopPrediction();toast('Erkennung gestoppt. Zum Fortfahren erneut starten.')};
-$('saveBtn').onclick=exportProject;$('loadBtn').onclick=()=>$('loadFile').click();$('loadFile').onchange=e=>importProject(e.target.files[0]);
+$('saveBtn').onclick=exportProject;$('loadBtn').onchange=importProject;
 $('quickSaveBtn').onclick=exportProject;
 $('helpBtn').onclick=()=>$('helpDialog').showModal();
 for(const d of document.querySelectorAll('dialog')){d.querySelectorAll('.close,.close-action').forEach(b=>b.onclick=()=>d.close());d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()}})}
@@ -509,7 +512,7 @@ function enterProject(){
  $('overviewHeading').focus();
 }
 $('homeResume').onclick=enterProject;
-$('homeFile').onclick=()=>$('loadFile').click();
+$('homeFile').onchange=importProject;
 $('homeNewForm').onsubmit=$('newProjectForm').onsubmit=async event=>{
  event.preventDefault();
  const form=event.currentTarget,input=form.querySelector('input'),status=form===$('homeNewForm')?$('homeStatus'):$('projectDialogStatus');

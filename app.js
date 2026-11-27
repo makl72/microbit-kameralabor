@@ -19,6 +19,7 @@ let captureSerial=0,predictSerial=0,confidence=0.85,predictionTask=null;
 let cameraWatchTimer=null,lastVideoTime=0,lastVideoProgress=0,lastCameraRecovery=0;
 let trainingBackend=null,activeIndices=[],oneClass=null,savedModel=null,selectedClass=0,currentPane='collect',restoring=true,saveTimer,savePending=false,storageHealthy=true,saveChain=Promise.resolve(),testTarget=-1,hasStableRecognition=false;
 let projectDirty=false,storageVersion=null;
+let hasCurrentProject=false;
 let projectName='Mein Experiment',undoDeletion=null,gallerySelection=new Set(),gallerySlot=0;
 let bitLink=null,bitMode=window.webkit?.messageHandlers?.microbit?'native':'ble',bitConnecting=false,bitTesting=false,bitReady=false,bitView='connect',currentClass=-1,currentSymbol=null,sending=false,pendingSymbol=false;
 const gate=CameraLabCore.createGate();
@@ -116,7 +117,7 @@ function updateControls(){
  const list=$('trainReadiness');list.replaceChildren();classes.forEach((c,i)=>{const row=document.createElement('div');row.className='readiness-row';const label=document.createElement('span');label.textContent=c.name||'Klasse '+(i+1);const count=document.createElement('strong');count.textContent=!c.samples.length?'Leer · wird übersprungen':c.samples.length>=MIN?'✓ '+c.samples.length+' Bilder':c.samples.length+' / '+MIN+' · noch '+(MIN-c.samples.length);count.className=c.samples.length>=MIN?'ready':c.samples.length?'missing':'';row.append(label,count);list.append(row)});
  list.hidden=training||trained;
  $('cameraBtn').disabled=restoring||cameraStarting||training;$('switchCam').disabled=!stream||training||!!recording||cameraStarting;$('restartCam').disabled=!stream||training||cameraStarting;$('stopCam').disabled=!stream||training||cameraStarting;
- $('newProjectBtn').disabled=restoring||training||extracting;$('projectName').disabled=restoring||training;
+ $('newProjectBtn').disabled=restoring||training||extracting;refreshProjectHome();$('projectName').disabled=restoring||training;
  $('quickSaveBtn').disabled=restoring||training||!!recording||extracting;
  $('loadBtn').disabled=restoring||training||!!recording||extracting;$('saveBtn').disabled=restoring||training||!!recording||extracting;
  updateStepProgress();
@@ -418,7 +419,7 @@ async function importProject(file){
  if(!file)return;try{if(file.size>50000000)throw Error('Datei ist zu groß (maximal 50 MB).');const raw=JSON.parse(await file.text());const imported=CameraLabCore.validateProject(raw);if(imported.some(c=>c.samples.some(row=>row.length!==512)))throw Error('Unpassende Lernmerkmale.');
  if(classes.some(c=>c.samples.length)&&!confirm('Projektdatei „'+file.name+'“ öffnen? Das aktuelle Projekt „'+projectName+'“ wird im Browser ersetzt. Sichere es zuvor als .json, falls du es behalten möchtest.'))return;
  stopCapture();invalidate();undoDeletion=null;$('undoBar').hidden=true;projectName=CameraLabCore.projectNameForFile(file.name,raw.name);$('projectName').value=projectName;classes=imported;useFrameMode(raw.frameMode);readStoredLayouts(classes);selectedClass=Math.max(0,classes.findIndex(c=>c.samples.length));renderCards();showPane('collect');await saveNow();$('newProjectDialog').close();
- toast('Projektdatei „'+file.name+'“ geladen. Bei Bedarf erneut trainieren.');
+ enterProject();toast('Projektdatei „'+file.name+'“ geladen. Bei Bedarf erneut trainieren.');
  }catch(e){toast('Import nicht möglich: '+e.message)}finally{$('loadFile').value=''}
 }
 $('cameraBtn').onclick=startCamera;$('switchCam').onclick=()=>{front=!front;startCamera()};$('restartCam').onclick=startCamera;$('stopCam').onclick=stopCamera;
@@ -469,6 +470,7 @@ async function restoreProject(override){
     activeIndices=indices;
     try{if(state.model.kind==='single'&&indices.length===1){oneClass=CameraLabCore.singleProfile(classes[indices[0]].samples);trained=true}else if(state.model.kind==='multi'&&indices.length>1){await tf.ready();head=await tf.loadLayersModel(tf.io.fromMemory(state.model.artifacts));trained=true}if(trained)savedModel=state.model}catch(e){trained=false;savedModel=null}
    }
+   hasCurrentProject=true;
    currentPane=['collect','train','live','map','connect'].includes(state.currentPane)?state.currentPane:'collect';
    $('saveStatus').textContent='✓ Projekt wiederhergestellt';if(trained){$('resultBadge').textContent='Modell wiederhergestellt';showTrainMessage('✓ Dein trainiertes Modell ist wieder bereit.')}else if(classes.some(c=>c.samples.length)){showTrainMessage('Deine Bilder sind wiederhergestellt. Bei Bedarf trainieren.');}
   }else $('saveStatus').textContent='Automatisches Speichern aktiv';
@@ -494,13 +496,28 @@ $('selectAllImages').onclick=()=>{const c=classes[gallerySlot];gallerySelection=
 $('deleteSelectedImages').onclick=()=>deleteImages(gallerySlot,[...gallerySelection]);
 $('projectName').oninput=e=>{projectName=e.target.value;scheduleSave()};$('projectName').onblur=e=>{projectName=e.target.value.trim()||'Mein Experiment';e.target.value=projectName;scheduleSave()};
 $('newProjectBtn').onclick=async()=>{if(training||restoring||extracting)return;stopCapture();stopPrediction();$('projectDialogStatus').textContent='';$('projectFileName').textContent=projectFilename();$('newProjectDialog').showModal();$('restorePrevious').disabled=!(await LabStorage.read('previous').catch(()=>null))};
-$('newProjectForm').onsubmit=async event=>{
+function refreshProjectHome(){
+ const busy=restoring||training||extracting;
+ $('homeNewForm').querySelector('button').disabled=busy;
+ $('homeFile').disabled=busy;
+ $('homeResume').hidden=!hasCurrentProject;
+ $('homeRecent').textContent=projectName;
+}
+function enterProject(){
+ hasCurrentProject=true;
+ document.documentElement.classList.remove('picture-start');
+ document.querySelector('.steps .active')?.focus();
+}
+$('homeResume').onclick=enterProject;
+$('homeFile').onclick=()=>$('loadFile').click();
+$('homeNewForm').onsubmit=$('newProjectForm').onsubmit=async event=>{
  event.preventDefault();
- const name=$('newProjectName').value.trim();
+ const form=event.currentTarget,input=form.querySelector('input'),status=form===$('homeNewForm')?$('homeStatus'):$('projectDialogStatus');
+ const name=input.value.trim();
  if(!name||$('startNewProject').disabled)return;
  if(training||restoring||extracting)return;$('startNewProject').disabled=true;
- try{stopCapture();stopPrediction();await saveNow();await LabStorage.write(makeSnapshot(),'previous');invalidate();classes=[makeClass(0),makeClass(1)];useFrameMode('full');projectName=name;$('projectName').value=projectName;selectedClass=0;undoDeletion=null;$('undoBar').hidden=true;renderCards();showPane('collect');await saveNow();$('newProjectDialog').close();$('newProjectName').value='';toast('Neues Projekt bereit. Das vorige kannst du über „Neues Projekt“ zurückholen.')}
- catch(e){$('projectDialogStatus').textContent='Die lokale Sicherung ist nicht möglich. Exportiere zuerst dein jetziges Projekt; es wurde noch nichts verworfen.'}
+ try{stopCapture();stopPrediction();await saveNow();if(hasCurrentProject)await LabStorage.write(makeSnapshot(),'previous');invalidate();classes=[makeClass(0),makeClass(1)];useFrameMode('full');projectName=name;$('projectName').value=projectName;selectedClass=0;undoDeletion=null;$('undoBar').hidden=true;renderCards();showPane('collect');await saveNow();$('newProjectDialog').close();input.value='';status.textContent='';enterProject();toast('Neues Projekt bereit.')}
+ catch(e){status.textContent='Die lokale Sicherung ist nicht möglich. Exportiere zuerst dein jetziges Projekt; es wurde noch nichts verworfen.'}
  finally{$('startNewProject').disabled=false}
 };
 $('restorePrevious').onclick=async()=>{
@@ -610,5 +627,5 @@ $('testLedBtn').onclick=async()=>{
  }
 };
 for(const matrix of document.querySelectorAll('.led-matrix'))renderLED(matrix,matrix.dataset.pattern||'heart');
-useFrameMode('full');renderCards();updateBitUI();restoreProject();
+useFrameMode('full');renderCards();updateBitUI();restoreProject().finally(refreshProjectHome);
 setTimeout(()=>{loadBase().catch(()=>{})},0);

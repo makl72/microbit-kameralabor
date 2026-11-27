@@ -50,16 +50,13 @@
     });
     updateFullscreen();
   }
-  const main = document.querySelector('main');
-  const home = document.createElement('section');
-  home.className = 'picture-home';
-  home.innerHTML = '<h1 tabindex="-1">Deine Schritte</h1><div class="picture-tiles"></div>';
-  main.prepend(home);
+  const home = document.querySelector('.picture-home');
   const brand = document.querySelector('.brand');
   brand.querySelector('.brand-mark').innerHTML = homeIcon;
   brand.addEventListener('click', event => {
     event.preventDefault();
     if (stream || predicting || recording) stopCamera();
+    refreshProjectHome();
     root.classList.add('picture-start');
     home.querySelector('h1').focus();
   });
@@ -70,21 +67,12 @@
       root.classList.toggle('picture-collect',active[0]==='stepCollect');
     }
   }
-  for (const [index,[id,label,color,drawing]] of steps.entries()) {
+  for (const [id,label,color,drawing] of steps) {
     const tab = document.getElementById(id);
     tab.style.setProperty('--tile',color);
     tab.querySelector('.step-icon').innerHTML = icon(drawing);
     tab.lastElementChild.textContent = label;
-    const tile = document.createElement('button');
-    tile.className = 'picture-tile';
-    tile.style.setProperty('--tile',color);
-    tile.innerHTML = '<small>Schritt '+(index+1)+'</small>'+icon(drawing)+'<span>'+label+'</span>';
-    tile.onclick = () => {
-      root.classList.remove('picture-start');
-      tab.click();
-      tab.focus();
-    };
-    home.querySelector('.picture-tiles').append(tile);
+
   }
   new MutationObserver(setColor).observe(document.querySelector('.steps'),{attributes:true,attributeFilter:['aria-pressed'],subtree:true});
   setColor();
